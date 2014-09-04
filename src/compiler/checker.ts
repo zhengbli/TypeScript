@@ -2976,13 +2976,21 @@ module ts {
                 var sourceSignatures = getSignaturesOfType(source, kind);
                 var targetSignatures = getSignaturesOfType(target, kind);
                 var saveErrorInfo = errorInfo;
+
                 outer: for (var i = 0; i < targetSignatures.length; i++) {
                     var t = targetSignatures[i];
                     if (!t.hasStringLiterals || target.flags & TypeFlags.FromSignature) {
                         var localErrors = reportErrors;
+                        // Only consider source signatures which are maximal with regard to the target signature
+                        var maximumEffectiveCallLength = 0;
+                        for (var j = 0; j < sourceSignatures.length; j++) {
+                            maximumEffectiveCallLength = Math.max(maximumEffectiveCallLength, sourceSignatures[j].minArgumentCount);
+                        }
+                        maximumEffectiveCallLength = Math.min(maximumEffectiveCallLength, t.minArgumentCount);
+
                         for (var j = 0; j < sourceSignatures.length; j++) {
                             var s = sourceSignatures[j];
-                            if (!s.hasStringLiterals || source.flags & TypeFlags.FromSignature) {
+                            if ((s.hasRestParameter || s.minArgumentCount >= maximumEffectiveCallLength) && !s.hasStringLiterals || source.flags & TypeFlags.FromSignature) {
                                 if (isSignatureSubtypeOrAssignableTo(s, t, localErrors)) {
                                     errorInfo = saveErrorInfo;
                                     continue outer;

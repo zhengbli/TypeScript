@@ -1,0 +1,29 @@
+==== tests/cases/compiler/stricterSignatureMatching.ts (1 errors) ====
+    
+    interface koElement1 {
+        // Getter
+        (): string;
+        (value: string): void;
+    }
+    
+    
+    function invoke(fn: (c: number) => void) {
+        fn(4);
+    }
+    
+    var x: koElement1;
+    // Desired: error
+    invoke(x);
+           ~
+!!! Argument of type 'koElement1' is not assignable to parameter of type '(c: number) => void'.
+    
+    
+    interface koElement2 {
+        (): string;
+        (value: string): void;
+        (value: number): void;
+    }
+    
+    var y: koElement2;
+    invoke(y); // Should be OK
+    
