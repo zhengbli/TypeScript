@@ -3142,8 +3142,15 @@ module ts {
             return true;
         }
 
+        function isAssignableFromEach(candidate: Type, types: Type[]): boolean {
+            for (var i = 0, len = types.length; i < len; i++) {
+                if (candidate !== types[i] && !isTypeAssignableTo(types[i], candidate)) return false;
+            }
+            return true;
+        }
+
         function getBestCommonType(types: Type[], contextualType?: Type, candidatesOnly?: boolean): Type {
-            if (contextualType && isSupertypeOfEach(contextualType, types)) return contextualType;
+            if (contextualType && isAssignableFromEach(contextualType, types)) return contextualType;
             return forEach(types, t => isSupertypeOfEach(t, types) ? t : undefined) || (candidatesOnly ? undefined : emptyObjectType);
         }
 
