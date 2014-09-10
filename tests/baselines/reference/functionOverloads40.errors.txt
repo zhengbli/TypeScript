@@ -5,7 +5,5 @@
     var x = foo([{a:'bar'}]);
                 ~~~~~~~~~~~
 !!! Argument of type '{ a: string; }[]' is not assignable to parameter of type '{ a: boolean; }[]'.
-!!!   Type '{ a: string; }' is not assignable to type '{ a: boolean; }':
-!!!     Types of property 'a' are incompatible:
-!!!       Type 'string' is not assignable to type 'boolean'.
+!!!   Type '{ a: string; }' is not assignable to type '{ a: boolean; }'.
     

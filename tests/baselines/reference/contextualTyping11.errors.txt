@@ -2,5 +2,4 @@
     class foo { public bar:{id:number;}[] = [<foo>({})]; }
                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 !!! Type 'foo[]' is not assignable to type '{ id: number; }[]':
-!!!   Type 'foo' is not assignable to type '{ id: number; }':
-!!!     Property 'id' is missing in type 'foo'.
+!!!   Type 'foo' is not assignable to type '{ id: number; }'.

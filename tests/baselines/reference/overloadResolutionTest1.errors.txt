@@ -9,9 +9,7 @@
     var x111 = foo([{a:"s"}]); // error - does not match any signature
                    ~~~~~~~~~
 !!! Argument of type '{ a: string; }[]' is not assignable to parameter of type '{ a: boolean; }[]'.
-!!!   Type '{ a: string; }' is not assignable to type '{ a: boolean; }':
-!!!     Types of property 'a' are incompatible:
-!!!       Type 'string' is not assignable to type 'boolean'.
+!!!   Type '{ a: string; }' is not assignable to type '{ a: boolean; }'.
     var x1111 = foo([{a:null}]); // works - ambiguous call is resolved to be the first in the overload set so this returns a string
     
     

@@ -29,8 +29,7 @@
     ~~~~~~~
 !!! Type 'number[][]' is not assignable to type 'number[][][]':
 !!!   Type 'number[]' is not assignable to type 'number[][]':
-!!!     Type 'number' is not assignable to type 'number[]':
-!!!       Property 'length' is missing in type 'Number'.
+!!!     Type 'number' is not assignable to type 'number[]'.
     
     function isEmpty(l: { length: number }) {
         return l.length === 0;

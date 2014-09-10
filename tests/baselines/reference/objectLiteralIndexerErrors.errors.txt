@@ -1,4 +1,4 @@
-==== tests/cases/compiler/objectLiteralIndexerErrors.ts (1 errors) ====
+==== tests/cases/compiler/objectLiteralIndexerErrors.ts (2 errors) ====
     interface A {
         x: number;
     }
@@ -15,6 +15,9 @@
         ~~
 !!! Type '{ [x: string]: A; [x: number]: A; 0: A; x: B; }' is not assignable to type '{ [x: string]: A; [x: number]: B; }':
 !!!   Index signatures are incompatible:
-!!!     Type 'A' is not assignable to type 'B':
-!!!       Property 'y' is missing in type 'A'.
+!!!     Type 'A' is not assignable to type 'B'.
     o1 = { x: c, 0: a }; // string indexer is any, number indexer is A
+    ~~
+!!! Type '{ [x: string]: A; [x: number]: A; 0: A; x: any; }' is not assignable to type '{ [x: string]: A; [x: number]: B; }':
+!!!   Index signatures are incompatible:
+!!!     Type 'A' is not assignable to type 'B'.

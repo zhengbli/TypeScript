@@ -5,6 +5,5 @@
     var x = foo([{}]);
                 ~~~~
 !!! Argument of type '{}[]' is not assignable to parameter of type '{ a: boolean; }[]'.
-!!!   Type '{}' is not assignable to type '{ a: boolean; }':
-!!!     Property 'a' is missing in type '{}'.
+!!!   Type '{}' is not assignable to type '{ a: boolean; }'.
     
