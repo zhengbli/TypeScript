@@ -960,6 +960,7 @@ module ts {
     export interface InferenceContext {
         typeParameters: TypeParameter[];
         inferences: Type[][];
+        secondaryInferences: Type[][];
         inferredTypes: Type[];
     }
 

@@ -3502,7 +3502,7 @@ module ts {
             }
         }
 
-        function forEachMatchingParameterType(source: Signature, target: Signature, callback: (s: Type, t: Type) => void) {
+        function forEachMatchingParameterType(source: Signature, target: Signature, callback: (s: Type, t: Type, isPrimary: boolean) => void) {
             var sourceMax = source.parameters.length;
             var targetMax = target.parameters.length;
             var count: number;
@@ -3525,16 +3525,21 @@ module ts {
             for (var i = 0; i < count; i++) {
                 var s = i < sourceMax ? getTypeOfSymbol(source.parameters[i]) : getRestTypeOfSignature(source);
                 var t = i < targetMax ? getTypeOfSymbol(target.parameters[i]) : getRestTypeOfSignature(target);
-                callback(s, t);
+                callback(s, t, /* isPrimary */ false);
             }
         }
 
         function createInferenceContext(typeParameters: TypeParameter[]): InferenceContext {
             var inferences: Type[][] = [];
-            for (var i = 0; i < typeParameters.length; i++) inferences.push([]);
+            var secondaryInferences: Type[][] = [];
+            for (var i = 0; i < typeParameters.length; i++) {
+                inferences.push([]);
+                secondaryInferences.push([]);
+            }
             return {
                 typeParameters: typeParameters,
                 inferences: inferences,
+                secondaryInferences: secondaryInferences,
                 inferredTypes: new Array(typeParameters.length),
             };
         }
@@ -3543,7 +3548,7 @@ module ts {
             var sourceStack: Type[];
             var targetStack: Type[];
             var depth = 0;
-            inferFromTypes(source, target);
+            inferFromTypes(source, target, true);
 
             function isInProcess(source: Type, target: Type) {
                 for (var i = 0; i < depth; i++) {
@@ -3565,13 +3570,13 @@ module ts {
                 return true;
             }
 
-            function inferFromTypes(source: Type, target: Type) {
+            function inferFromTypes(source: Type, target: Type, isPrimary: boolean) {
                 if (target.flags & TypeFlags.TypeParameter) {
                     // If target is a type parameter, make an inference
                     var typeParameters = context.typeParameters;
                     for (var i = 0; i < typeParameters.length; i++) {
                         if (target === typeParameters[i]) {
-                            var inferences = context.inferences[i];
+                            var inferences = isPrimary ? context.inferences[i] : context.secondaryInferences[i];
                             if (!contains(inferences, source)) inferences.push(source);
                             break;
                         }
@@ -3582,7 +3587,7 @@ module ts {
                     var sourceTypes = (<TypeReference>source).typeArguments;
                     var targetTypes = (<TypeReference>target).typeArguments;
                     for (var i = 0; i < sourceTypes.length; i++) {
-                        inferFromTypes(sourceTypes[i], targetTypes[i]);
+                        inferFromTypes(sourceTypes[i], targetTypes[i], true);
                     }
                 }
                 else if (source.flags & TypeFlags.ObjectType && (target.flags & (TypeFlags.Reference | TypeFlags.Tuple) ||
@@ -3613,7 +3618,7 @@ module ts {
                     var targetProp = properties[i];
                     var sourceProp = getPropertyOfType(source, targetProp.name);
                     if (sourceProp) {
-                        inferFromTypes(getTypeOfSymbol(sourceProp), getTypeOfSymbol(targetProp));
+                        inferFromTypes(getTypeOfSymbol(sourceProp), getTypeOfSymbol(targetProp), true);
                     }
                 }
             }
@@ -3631,7 +3636,7 @@ module ts {
 
             function inferFromSignature(source: Signature, target: Signature) {
                 forEachMatchingParameterType(source, target, inferFromTypes);
-                inferFromTypes(getReturnTypeOfSignature(source), getReturnTypeOfSignature(target));
+                inferFromTypes(getReturnTypeOfSignature(source), getReturnTypeOfSignature(target), true);
             }
 
             function inferFromIndexTypes(source: Type, target: Type, sourceKind: IndexKind, targetKind: IndexKind) {
@@ -3639,7 +3644,7 @@ module ts {
                 if (targetIndexType) {
                     var sourceIndexType = getIndexTypeOfType(source, sourceKind);
                     if (sourceIndexType) {
-                        inferFromTypes(sourceIndexType, targetIndexType);
+                        inferFromTypes(sourceIndexType, targetIndexType, true);
                     }
                 }
             }
@@ -3648,7 +3653,8 @@ module ts {
         function getInferredType(context: InferenceContext, index: number): Type {
             var result = context.inferredTypes[index];
             if (!result) {
-                var commonType = getWidenedType(getBestCommonType(context.inferences[index]));
+                var inferences = context.inferences[index].length > 0 ? context.inferences[index] : context.secondaryInferences[index];
+                var commonType = getWidenedType(getBestCommonType(inferences));
                 var constraint = getConstraintOfTypeParameter(context.typeParameters[index]);
                 var result = constraint && !isTypeAssignableTo(commonType, constraint) ? constraint : commonType;
                 context.inferredTypes[index] = result;

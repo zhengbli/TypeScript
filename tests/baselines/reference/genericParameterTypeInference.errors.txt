@@ -1,0 +1,12 @@
+tests/cases/compiler/genericParameterTypeInference.ts(5,17): error TS2345: Argument of type '(s: string) => boolean' is not assignable to parameter of type '(s: number) => boolean'.
+
+
+==== tests/cases/compiler/genericParameterTypeInference.ts (1 errors) ====
+    function find<T>(hay: T[], test: (s: T) => boolean ) { return 0; }
+    
+    function stringIsEmpty(s: string) { return false; }
+    
+    find([1, 2, 3], stringIsEmpty);
+                    ~~~~~~~~~~~~~
+!!! error TS2345: Argument of type '(s: string) => boolean' is not assignable to parameter of type '(s: number) => boolean'.
+    
