@@ -3260,22 +3260,25 @@ module ts {
             return token === SyntaxKind.StringLiteral ? parseAmbientExternalModuleDeclaration(pos, flags) : parseInternalModuleTail(pos, flags);
         }
 
-        function parseImportDeclaration(pos: number, flags: NodeFlags): ImportDeclaration {
-            var node = <ImportDeclaration>createNode(SyntaxKind.ImportDeclaration, pos);
-            node.flags = flags;
+        function parseImportDeclaration(fullStart: number, flags: NodeFlags): ImportDeclaration {
             parseExpected(SyntaxKind.ImportKeyword);
-            node.name = parseIdentifier();
+            var name = parseIdentifier();
             parseExpected(SyntaxKind.EqualsToken);
+
             var entityName = parseEntityName(/*allowReservedWords*/ false);
             if (entityName.kind === SyntaxKind.Identifier && (<Identifier>entityName).text === "require" && parseOptional(SyntaxKind.OpenParenToken)) {
-                node.externalModuleName = parseStringLiteral();
+                entityName = undefined;
+                var externalModuleName = parseStringLiteral();
                 parseExpected(SyntaxKind.CloseParenToken);
             }
-            else {
-                node.entityName = entityName;
-            }
             parseSemicolon();
-            return finishNode(node);
+
+            var node = <ImportDeclaration>createAndFinishNode(fullStart, SyntaxKind.ImportDeclaration);
+            node.flags = flags;
+            node.name = name;
+            node.externalModuleName = externalModuleName;
+            node.entityName = entityName;
+            return node;
         }
 
         function parseExportAssignmentTail(fullStart: number, modifiers: ModifiersArray): ExportAssignment {
