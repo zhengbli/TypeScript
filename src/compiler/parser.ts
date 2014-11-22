@@ -3191,60 +3191,73 @@ module ts {
             return finishNode(node);
         }
 
-        function parseAndCheckEnumDeclaration(pos: number, flags: NodeFlags): EnumDeclaration {
+        // In an ambient declaration, the grammar only allows integer literals as initializers.
+        // In a non-ambient declaration, the grammar allows uninitialized members only in a
+        // ConstantEnumMemberSection, which starts at the beginning of an enum declaration
+        // or any time an integer literal initializer is encountered.
+        function parseEnumMember(): EnumMember {
+            var fullStart = scanner.getStartPos();
+
+            var name = parsePropertyName();
+            var initializer = parseInitializer(/*inParameter*/ false);
+
+            var node = <EnumMember>createAndFinishNode(fullStart, SyntaxKind.EnumMember);
+            node.name = name;
+            node.initializer = initializer;
+            return node;
+        }
+
+        function parseAndCheckEnumDeclaration(fullStart: number, flags: NodeFlags): EnumDeclaration {
             var enumIsConst = flags & NodeFlags.Const;
 
-            // In an ambient declaration, the grammar only allows integer literals as initializers.
-            // In a non-ambient declaration, the grammar allows uninitialized members only in a
-            // ConstantEnumMemberSection, which starts at the beginning of an enum declaration
-            // or any time an integer literal initializer is encountered.
-            function parseEnumMember(): EnumMember {
-                var node = <EnumMember>createNode(SyntaxKind.EnumMember);
-                node.name = parsePropertyName();
-                node.initializer = parseInitializer(/*inParameter*/ false);
-                return finishNode(node);
-            }
-
-            var node = <EnumDeclaration>createNode(SyntaxKind.EnumDeclaration, pos);
-            node.flags = flags;
             if (enumIsConst) {
                 parseExpected(SyntaxKind.ConstKeyword);
             }
             parseExpected(SyntaxKind.EnumKeyword);
-            node.name = parseIdentifier();
+            var name = parseIdentifier();
+
             if (parseExpected(SyntaxKind.OpenBraceToken)) {
-                node.members = parseDelimitedList(ParsingContext.EnumMembers, parseEnumMember);
+                var members = parseDelimitedList(ParsingContext.EnumMembers, parseEnumMember);
                 parseExpected(SyntaxKind.CloseBraceToken);
             }
             else {
-                node.members = createMissingList<EnumMember>();
+                var members = createMissingList<EnumMember>();
             }
-            return finishNode(node);
+
+            var node = <EnumDeclaration>createAndFinishNode(fullStart, SyntaxKind.EnumDeclaration);
+            node.flags = flags;
+            node.name = name;
+            node.members = members;
+            return node;
         }
 
         function parseModuleBody(): Block {
-            var node = <Block>createNode(SyntaxKind.ModuleBlock);
+            var fullStart = scanner.getStartPos();
+
             if (parseExpected(SyntaxKind.OpenBraceToken)) {
-                node.statements = parseList(ParsingContext.ModuleElements, /*checkForStrictMode*/ false, parseModuleElement);
+                var statements = parseList(ParsingContext.ModuleElements, /*checkForStrictMode*/ false, parseModuleElement);
                 parseExpected(SyntaxKind.CloseBraceToken);
             }
             else {
-                node.statements = createMissingList<Statement>();
+                var statements = createMissingList<Statement>();
             }
-            return finishNode(node);
+
+            var node = <Block>createAndFinishNode(fullStart, SyntaxKind.ModuleBlock);
+            node.statements = statements;
+            return node;
         }
 
-        function parseInternalModuleTail(pos: number, flags: NodeFlags): ModuleDeclaration {
-            var node = <ModuleDeclaration>createNode(SyntaxKind.ModuleDeclaration, pos);
+        function parseInternalModuleTail(fullStart: number, flags: NodeFlags): ModuleDeclaration {
+            var name = parseIdentifier();
+            var body = parseOptional(SyntaxKind.DotToken)
+                ? parseInternalModuleTail(getNodePos(), NodeFlags.Export)
+                : parseModuleBody();
+
+            var node = <ModuleDeclaration>createAndFinishNode(fullStart, SyntaxKind.ModuleDeclaration);
             node.flags = flags;
-            node.name = parseIdentifier();
-            if (parseOptional(SyntaxKind.DotToken)) {
-                node.body = parseInternalModuleTail(getNodePos(), NodeFlags.Export);
-            }
-            else {
-                node.body = parseModuleBody();
-            }
-            return finishNode(node);
+            node.name = name;
+            node.body = body;
+            return node;
         }
 
         function parseAmbientExternalModuleDeclaration(fullStart: number, flags: NodeFlags): ModuleDeclaration {
