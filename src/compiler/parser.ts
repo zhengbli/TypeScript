@@ -3144,51 +3144,65 @@ module ts {
             Debug.fail("Should not have attempted to parse class member declaration.");
         }
 
-        function parseClassDeclaration(pos: number, flags: NodeFlags): ClassDeclaration {
-            var node = <ClassDeclaration>createNode(SyntaxKind.ClassDeclaration, pos);
-            node.flags = flags;
+        function parseClassDeclaration(fullStart: number, flags: NodeFlags): ClassDeclaration {
             parseExpected(SyntaxKind.ClassKeyword);
-            node.name = parseIdentifier();
-            node.typeParameters = parseTypeParameters();
+            var name = parseIdentifier();
+            var typeParameters = parseTypeParameters();
             // TODO(jfreeman): Parse arbitrary sequence of heritage clauses and error for order and duplicates
 
-            node.baseType = parseOptional(SyntaxKind.ExtendsKeyword) ? parseTypeReference() : undefined;
+            var baseType = parseOptional(SyntaxKind.ExtendsKeyword) ? parseTypeReference() : undefined;
             if (parseOptional(SyntaxKind.ImplementsKeyword)) {
-                node.implementedTypes = parseDelimitedList(ParsingContext.BaseTypeReferences, parseTypeReference);
+                var implementedTypes = parseDelimitedList(ParsingContext.BaseTypeReferences, parseTypeReference);
             }
             if (parseExpected(SyntaxKind.OpenBraceToken)) {
-                node.members = parseList(ParsingContext.ClassMembers, /*checkForStrictMode*/ false, parseClassMemberDeclaration);
+                var members = parseList(ParsingContext.ClassMembers, /*checkForStrictMode*/ false, parseClassMemberDeclaration);
                 parseExpected(SyntaxKind.CloseBraceToken);
             }
             else {
-                node.members = createMissingList<Declaration>();
+                var members = createMissingList<Declaration>();
             }
-            return finishNode(node);
+
+            var node = <ClassDeclaration>createAndFinishNode(fullStart, SyntaxKind.ClassDeclaration);
+            node.flags |= flags;
+            node.name = name;
+            node.typeParameters = typeParameters;
+            node.baseType = baseType;
+            node.implementedTypes = implementedTypes;
+            node.members = members;
+            return node;
         }
 
-        function parseInterfaceDeclaration(pos: number, flags: NodeFlags): InterfaceDeclaration {
-            var node = <InterfaceDeclaration>createNode(SyntaxKind.InterfaceDeclaration, pos);
-            node.flags = flags;
+        function parseInterfaceDeclaration(fullStart: number, flags: NodeFlags): InterfaceDeclaration {
             parseExpected(SyntaxKind.InterfaceKeyword);
-            node.name = parseIdentifier();
-            node.typeParameters = parseTypeParameters();
+            var name = parseIdentifier();
+            var typeParameters = parseTypeParameters();
             // TODO(jfreeman): Parse arbitrary sequence of heritage clauses and error for order and duplicates
             if (parseOptional(SyntaxKind.ExtendsKeyword)) {
-                node.baseTypes = parseDelimitedList(ParsingContext.BaseTypeReferences, parseTypeReference);
+                var baseTypes = parseDelimitedList(ParsingContext.BaseTypeReferences, parseTypeReference);
             }
-            node.members = parseTypeLiteral().members;
-            return finishNode(node);
+            var members = parseTypeLiteral().members;
+
+            var node = <InterfaceDeclaration>createAndFinishNode(fullStart, SyntaxKind.InterfaceDeclaration);
+            node.flags |= flags;
+            node.name = name;
+            node.typeParameters = typeParameters;
+            node.baseTypes = baseTypes;
+            node.members = members;
+            return node;
         }
 
-        function parseTypeAliasDeclaration(pos: number, flags: NodeFlags): TypeAliasDeclaration {
-            var node = <TypeAliasDeclaration>createNode(SyntaxKind.TypeAliasDeclaration, pos);
-            node.flags = flags;
+        function parseTypeAliasDeclaration(fullStart: number, flags: NodeFlags): TypeAliasDeclaration {
             parseExpected(SyntaxKind.TypeKeyword);
-            node.name = parseIdentifier();
+            var name = parseIdentifier();
             parseExpected(SyntaxKind.EqualsToken);
-            node.type = parseType();
+            var type = parseType();
             parseSemicolon();
-            return finishNode(node);
+
+            var node = <TypeAliasDeclaration>createAndFinishNode(fullStart, SyntaxKind.TypeAliasDeclaration);
+            node.flags |= flags;
+            node.name = name;
+            node.type = type;
+            return node;
         }
 
         // In an ambient declaration, the grammar only allows integer literals as initializers.
@@ -3225,7 +3239,7 @@ module ts {
             }
 
             var node = <EnumDeclaration>createAndFinishNode(fullStart, SyntaxKind.EnumDeclaration);
-            node.flags = flags;
+            node.flags |= flags;
             node.name = name;
             node.members = members;
             return node;
@@ -3254,7 +3268,7 @@ module ts {
                 : parseModuleBody();
 
             var node = <ModuleDeclaration>createAndFinishNode(fullStart, SyntaxKind.ModuleDeclaration);
-            node.flags = flags;
+            node.flags |= flags;
             node.name = name;
             node.body = body;
             return node;
@@ -3265,15 +3279,17 @@ module ts {
             var body = parseModuleBody();
 
             var node = <ModuleDeclaration>createAndFinishNode(fullStart, SyntaxKind.ModuleDeclaration);
-            node.flags = flags;
+            node.flags |= flags;
             node.name = name;
             node.body = body;
             return node;
         }
 
-        function parseModuleDeclaration(pos: number, flags: NodeFlags): ModuleDeclaration {
+        function parseModuleDeclaration(fullStart: number, flags: NodeFlags): ModuleDeclaration {
             parseExpected(SyntaxKind.ModuleKeyword);
-            return token === SyntaxKind.StringLiteral ? parseAmbientExternalModuleDeclaration(pos, flags) : parseInternalModuleTail(pos, flags);
+            return token === SyntaxKind.StringLiteral
+                ? parseAmbientExternalModuleDeclaration(fullStart, flags)
+                : parseInternalModuleTail(fullStart, flags);
         }
 
         function parseImportDeclaration(fullStart: number, flags: NodeFlags): ImportDeclaration {
@@ -3290,7 +3306,7 @@ module ts {
             parseSemicolon();
 
             var node = <ImportDeclaration>createAndFinishNode(fullStart, SyntaxKind.ImportDeclaration);
-            node.flags = flags;
+            node.flags |= flags;
             node.name = name;
             node.externalModuleName = externalModuleName;
             node.entityName = entityName;
