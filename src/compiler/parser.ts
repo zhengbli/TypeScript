@@ -1049,6 +1049,10 @@ module ts {
             return node;
         }
 
+        function createAndFinishNode(fullStart: number, kind: SyntaxKind) {
+            return finishNode(createNode(kind, fullStart));
+        }
+
         function createMissingNode(pos?: number): Node {
             return createNode(SyntaxKind.Missing, pos);
         }
@@ -3274,13 +3278,14 @@ module ts {
             return finishNode(node);
         }
 
-        function parseExportAssignmentTail(pos: number, modifiers: ModifiersArray): ExportAssignment {
-            var node = <ExportAssignment>createNode(SyntaxKind.ExportAssignment, pos);
-            setModifiers(node, modifiers);
-
-            node.exportName = parseIdentifier();
+        function parseExportAssignmentTail(fullStart: number, modifiers: ModifiersArray): ExportAssignment {
+            var exportName = parseIdentifier();
             parseSemicolon();
-            return finishNode(node);
+
+            var node = <ExportAssignment>createAndFinishNode(fullStart, SyntaxKind.ExportAssignment);
+            setModifiers(node, modifiers);
+            node.exportName = exportName;
+            return node;
         }
 
         function isDeclarationStart(): boolean {
