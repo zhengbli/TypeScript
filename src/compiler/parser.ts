@@ -3247,12 +3247,15 @@ module ts {
             return finishNode(node);
         }
 
-        function parseAmbientExternalModuleDeclaration(pos: number, flags: NodeFlags): ModuleDeclaration {
-            var node = <ModuleDeclaration>createNode(SyntaxKind.ModuleDeclaration, pos);
+        function parseAmbientExternalModuleDeclaration(fullStart: number, flags: NodeFlags): ModuleDeclaration {
+            var name = parseStringLiteral();
+            var body = parseModuleBody();
+
+            var node = <ModuleDeclaration>createAndFinishNode(fullStart, SyntaxKind.ModuleDeclaration);
             node.flags = flags;
-            node.name = parseStringLiteral();
-            node.body = parseModuleBody();
-            return finishNode(node);
+            node.name = name;
+            node.body = body;
+            return node;
         }
 
         function parseModuleDeclaration(pos: number, flags: NodeFlags): ModuleDeclaration {
