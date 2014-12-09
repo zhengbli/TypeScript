@@ -1350,15 +1350,17 @@ module ts {
             return token === SyntaxKind.CloseBraceToken || token === SyntaxKind.EndOfFileToken || scanner.hasPrecedingLineBreak();
         }
 
-        function parseSemicolon(diagnosticMessage?: DiagnosticMessage): void {
+        function parseSemicolon(diagnosticMessage?: DiagnosticMessage): boolean {
             if (canParseSemicolon()) {
                 if (token === SyntaxKind.SemicolonToken) {
                     // consume the semicolon if it was explicitly provided.
                     nextToken();
                 }
+
+                return true;
             }
             else {
-                parseExpected(SyntaxKind.SemicolonToken, diagnosticMessage);
+                return parseExpected(SyntaxKind.SemicolonToken, diagnosticMessage);
             }
         }
 
@@ -2064,13 +2066,27 @@ module ts {
             return requireCompleteParameterList ? undefined : createMissingList<ParameterDeclaration>();
         }
 
+        function parseTypeMemberSemicolon() {
+            // Try to parse out an explicit or implicit (ASI) semicolon for a type member.  If we
+            // don't have one, then an appropriate error will be reported.
+            if (parseSemicolon()) {
+                return;
+            }
+
+            // If we don't have a semicolon, then the user may have written a comma instead 
+            // accidently (pretty easy to do since commas are so prevalent as list separators). So
+            // just consume the comma and keep going.  Note: we'll have already reported the error
+            // about the missing semicolon above.
+            parseOptional(SyntaxKind.CommaToken);
+        }
+
         function parseSignatureMember(kind: SyntaxKind): SignatureDeclaration {
             var node = <SignatureDeclaration>createNode(kind);
             if (kind === SyntaxKind.ConstructSignature) {
                 parseExpected(SyntaxKind.NewKeyword);
             }
             fillSignature(SyntaxKind.ColonToken, /*yieldAndGeneratorParameterContext:*/ false, /*requireCompleteParameterList:*/ false, node);
-            parseSemicolon();
+            parseTypeMemberSemicolon();
             return finishNode(node);
         }
 
@@ -2142,7 +2158,7 @@ module ts {
             setModifiers(node, modifiers);
             node.parameters = parseBracketedList(ParsingContext.Parameters, parseParameter, SyntaxKind.OpenBracketToken, SyntaxKind.CloseBracketToken);
             node.type = parseTypeAnnotation();
-            parseSemicolon();
+            parseTypeMemberSemicolon();
             return finishNode(node)
         }
 
@@ -2159,8 +2175,7 @@ module ts {
                 // Method signatues don't exist in expression contexts.  So they have neither
                 // [Yield] nor [GeneratorParameter]
                 fillSignature(SyntaxKind.ColonToken, /*yieldAndGeneratorParameterContext:*/ false, /*requireCompleteParameterList:*/ false, method);
-
-                parseSemicolon();
+                parseTypeMemberSemicolon();
                 return finishNode(method);
             }
             else {
@@ -2168,7 +2183,7 @@ module ts {
                 property.name = name;
                 property.questionToken = questionToken;
                 property.type = parseTypeAnnotation();
-                parseSemicolon();
+                parseTypeMemberSemicolon();
                 return finishNode(property);
             }
         }
@@ -2452,6 +2467,14 @@ module ts {
                     // a generator, or in strict mode (or both)) and it started a yield expression.
                     return true;
                 default:
+                    // Error tolerance.  If we see the start of some binary operator, we consider
+                    // that the start of an expression.  That way we'll parse out a missing identifier,
+                    // give a good message about an identifier being missing, and then consume the
+                    // rest of the binary expression.
+                    if (isBinaryOperator()) {
+                        return true;
+                    }
+
                     return isIdentifier();
             }
         }
@@ -2838,7 +2861,7 @@ module ts {
                 // reScanGreaterToken so that we merge token sequences like > and = into >=
 
                 reScanGreaterToken();
-                var newPrecedence = getOperatorPrecedence();
+                var newPrecedence = getBinaryOperatorPrecedence();
 
                 // Check the precedence to see if we should "take" this operator
                 if (newPrecedence <= precedence) {
@@ -2857,7 +2880,15 @@ module ts {
             return leftOperand;
         }
 
-        function getOperatorPrecedence(): number {
+        function isBinaryOperator() {
+            if (inDisallowInContext() && token === SyntaxKind.InKeyword) {
+                return false;
+            }
+
+            return getBinaryOperatorPrecedence() > 0;
+        }
+
+        function getBinaryOperatorPrecedence(): number {
             switch (token) {
                 case SyntaxKind.BarBarToken:
                     return 1;
