@@ -15,14 +15,14 @@ interface IIndexable<V> {
 }
 
 function main(): void {
-    if (sys.args.length < 1) {
-        sys.write("Usage:" + sys.newLine)
-        sys.write("\tnode processDiagnosticMessages.js <diagnostic-json-input-file>" + sys.newLine);
+    if (ts.sys.args.length < 1) {
+        ts.sys.write("Usage:" + ts.sys.newLine)
+        ts.sys.write("\tnode processDiagnosticMessages.js <diagnostic-json-input-file>" + ts.sys.newLine);
         return;
     }
 
-    var inputFilePath = sys.args[0].replace(/\\/g, "/");
-    var inputStr = sys.readFile(inputFilePath);
+    var inputFilePath = ts.sys.args[0].replace(/\\/g, "/");
+    var inputStr = ts.sys.readFile(inputFilePath);
     
     var diagnosticMesages: InputDiagnosticMessageTable = JSON.parse(inputStr);
 
@@ -34,7 +34,7 @@ function main(): void {
     // TODO: Fix path joining
     var inputDirectory = inputFilePath.substr(0,inputFilePath.lastIndexOf("/"));
     var fileOutputPath = inputDirectory + "/diagnosticInformationMap.generated.ts";
-    sys.writeFile(fileOutputPath, infoFileOutput);
+    ts.sys.writeFile(fileOutputPath, infoFileOutput);
 }
 
 function buildUniqueNameMap(names: string[]): IIndexable<string> {
