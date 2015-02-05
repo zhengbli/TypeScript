@@ -263,6 +263,18 @@ module ts {
                 return visitNodes(cbNodes, (<HeritageClause>node).types);
             case SyntaxKind.ExternalModuleReference:
                 return visitNode(cbNode, (<ExternalModuleReference>node).expression);
+            case SyntaxKind.ExportAll:
+                return visitNode(cbNode, (<ExportAll>node).moduleSpecifier);
+            case SyntaxKind.ExportClauseDeclaration:
+                return visitNode(cbNode, (<ExportClauseDeclaration>node).exportClause) || 
+                    visitNode(cbNode, (<ExportClauseDeclaration>node).moduleSpecifier);
+            case SyntaxKind.ExportClause:
+                return visitNodes(cbNodes, (<ExportClause>node).elements);
+            case SyntaxKind.ImportOrExportSpecifier:
+                return visitNode(cbNode, (<ImportOrExportSpecifier>node).propertyName) ||
+                    visitNode(cbNode, (<ImportOrExportSpecifier>node).name);
+            case SyntaxKind.DefaultAssignmentExpression:
+                return visitNode(cbNode, (<DefaultAssignmentExpression>node).expression);
         }
     }
 

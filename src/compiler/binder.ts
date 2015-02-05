@@ -111,6 +111,10 @@ module ts {
                     return "__new";
                 case SyntaxKind.IndexSignature:
                     return "__index";
+                case SyntaxKind.FunctionDeclaration:
+                    return "__function";
+                case SyntaxKind.ClassDeclaration:
+                    return "__class";
             }
         }
 
@@ -121,9 +125,25 @@ module ts {
         function declareSymbol(symbols: SymbolTable, parent: Symbol, node: Declaration, includes: SymbolFlags, excludes: SymbolFlags): Symbol {
             Debug.assert(!hasDynamicName(node));
 
-            var name = getDeclarationName(node);
+            if (parent && node.flags & NodeFlags.Default) {
+                // Exported default symbol
+                var name = "__default";
+            }
+            else {
+                var name = getDeclarationName(node);
+            }
             if (name !== undefined) {
-                var symbol = hasProperty(symbols, name) ? symbols[name] : (symbols[name] = createSymbol(0, name));
+                if (!node.name && !!(node.flags & NodeFlags.Default)) {
+                    // Default anonymous symbols don't go in symbol table
+                    var symbol = createSymbol(0, name);
+                    if (parent && (hasProperty(symbols, name))) {
+                        // Error? duplicate definition of export default?
+                        // Or would be ok to follow below pattern and give error in grammar check, TODO(shkamat)
+                    }
+                }
+                else {
+                    var symbol = hasProperty(symbols, name) ? symbols[name] : (symbols[name] = createSymbol(0, name));
+                }
                 if (symbol.flags & excludes) {
                     if (node.name) {
                         node.name.parent = node;
@@ -244,6 +264,13 @@ module ts {
             container = saveContainer;
             parent = saveParent;
             blockScopeContainer = savedBlockScopeContainer;
+        }
+
+        function bindExportDeclaration(node: Declaration) {
+            if ((container.kind === SyntaxKind.ModuleDeclaration && (<ModuleDeclaration>container).name.kind === SyntaxKind.StringLiteral) ||
+                (container.kind === SyntaxKind.SourceFile && isExternalModule(<SourceFile>container))) {
+                declareSymbol(container.symbol.exports, container.symbol, node, SymbolFlags.Import, SymbolFlags.ImportExcludes);
+            }
         }
 
         function bindDeclaration(node: Declaration, symbolKind: SymbolFlags, symbolExcludes: SymbolFlags, isBlockScopeContainer: boolean) {
@@ -469,6 +496,12 @@ module ts {
                 case SyntaxKind.ImportEqualsDeclaration:
                     bindDeclaration(<Declaration>node, SymbolFlags.Import, SymbolFlags.ImportExcludes, /*isBlockScopeContainer*/ false);
                     break;
+                //case SyntaxKind.ExportAll: -- This needs to happen after all source files are bound
+                case SyntaxKind.ImportOrExportSpecifier:
+                    // Import binding is done in separate branch so handle only export clause here
+                    if (parent.kind === SyntaxKind.ExportClause) {
+                        bindExportDeclaration(<Declaration>node);
+                    }
                 case SyntaxKind.SourceFile:
                     if (isExternalModule(<SourceFile>node)) {
                         bindAnonymousDeclaration(<SourceFile>node, SymbolFlags.ValueModule, '"' + removeFileExtension((<SourceFile>node).filename) + '"', /*isBlockScopeContainer*/ true);

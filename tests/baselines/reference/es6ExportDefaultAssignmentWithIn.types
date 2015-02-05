@@ -12,3 +12,8 @@ function b() {
     };
 }
 export default a in b();
+>a in b() : boolean
+>a : unknown
+>b() : { a: number; }
+>b : () => { a: number; }
+

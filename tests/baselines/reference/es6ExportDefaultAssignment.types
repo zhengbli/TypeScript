@@ -4,3 +4,6 @@ function b() {
 >b : () => void
 }
 export default b();
+>b() : void
+>b : () => void
+

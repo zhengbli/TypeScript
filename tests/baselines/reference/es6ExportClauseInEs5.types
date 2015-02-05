@@ -25,13 +25,41 @@ var m1 = a1;
 
 export { };
 export { a1 };
+>a1 : unknown
+
 export { a1 as b1 };
+>a1 : unknown
+>b1 : unknown
+
 export { x1, a1 as y1 };
+>x1 : unknown
+>a1 : unknown
+>y1 : unknown
+
 export { x1 as z1,  };
+>x1 : unknown
+>z1 : unknown
+
 export { m1,  };
+>m1 : unknown
+
 export { } from "es6ExportClauseInEs5_0";
 export { a } from "es6ExportClauseInEs5_0";
+>a : unknown
+
 export { a as b } from "es6ExportClauseInEs5_0";
+>a : unknown
+>b : unknown
+
 export { x, a as y } from "es6ExportClauseInEs5_0";
+>x : unknown
+>a : unknown
+>y : unknown
+
 export { x as z,  } from "es6ExportClauseInEs5_0";
+>x : unknown
+>z : unknown
+
 export { m,  } from "es6ExportClauseInEs5_0";
+>m : unknown
+
