@@ -28,7 +28,7 @@ module ts {
     }
 
     interface AliasDeclarationEmitInfo {
-        declaration: ImportDeclaration;
+        declaration: ImportEqualsDeclaration;
         outputPos: number;
         indent: number;
         asynchronousOutput?: string; // If the output for alias was written asynchronously, the corresponding output
@@ -458,9 +458,9 @@ module ts {
             decreaseIndent = newWriter.decreaseIndent;
         }
 
-        function writeAsychronousImportDeclarations(importDeclarations: ImportDeclaration[]) {
+        function writeAsychronousImportEqualsDeclarations(importEqualsDeclarations: ImportEqualsDeclaration[]) {
             var oldWriter = writer;
-            forEach(importDeclarations, aliasToWrite => {
+            forEach(importEqualsDeclarations, aliasToWrite => {
                 var aliasEmitInfo = forEach(aliasDeclarationEmitInfo, declEmitInfo => declEmitInfo.declaration === aliasToWrite ? declEmitInfo : undefined);
                 // If the alias was marked as not visible when we saw its declaration, we would have saved the aliasEmitInfo, but if we haven't yet visited the alias declaration
                 // then we don't need to write it at this point. We will write it when we actually see its declaration
@@ -474,7 +474,7 @@ module ts {
                     for (var declarationIndent = aliasEmitInfo.indent; declarationIndent; declarationIndent--) {
                         increaseIndent();
                     }
-                    writeImportDeclaration(aliasToWrite);
+                    writeImportEqualsDeclaration(aliasToWrite);
                     aliasEmitInfo.asynchronousOutput = writer.getText();
                 }
             });
@@ -485,7 +485,7 @@ module ts {
             if (symbolAccesibilityResult.accessibility === SymbolAccessibility.Accessible) {
                 // write the aliases
                 if (symbolAccesibilityResult && symbolAccesibilityResult.aliasesToMakeVisible) {
-                    writeAsychronousImportDeclarations(symbolAccesibilityResult.aliasesToMakeVisible);
+                    writeAsychronousImportEqualsDeclarations(symbolAccesibilityResult.aliasesToMakeVisible);
                 }
             }
             else {
@@ -610,7 +610,7 @@ module ts {
             function emitEntityName(entityName: EntityName) {
                 var visibilityResult = resolver.isEntityNameVisible(entityName, 
                     // Aliases can be written asynchronously so use correct enclosing declaration
-                    entityName.parent.kind === SyntaxKind.ImportDeclaration ? entityName.parent : enclosingDeclaration);
+                    entityName.parent.kind === SyntaxKind.ImportEqualsDeclaration ? entityName.parent : enclosingDeclaration);
 
                 handleSymbolAccessibilityError(visibilityResult);
                 writeEntityName(entityName);
@@ -716,7 +716,7 @@ module ts {
             }
         }
 
-        function emitImportDeclaration(node: ImportDeclaration) {
+        function emitImportEqualsDeclaration(node: ImportEqualsDeclaration) {
             var nodeEmitInfo = {
                 declaration: node,
                 outputPos: writer.getTextPos(),
@@ -725,11 +725,11 @@ module ts {
             };
             aliasDeclarationEmitInfo.push(nodeEmitInfo);
             if (nodeEmitInfo.hasWritten) {
-                writeImportDeclaration(node);
+                writeImportEqualsDeclaration(node);
             }
         }
 
-        function writeImportDeclaration(node: ImportDeclaration) {
+        function writeImportEqualsDeclaration(node: ImportEqualsDeclaration) {
             // note usage of writer. methods instead of aliases created, just to make sure we are using 
             // correct writer especially to handle asynchronous alias writing
             emitJsDocComments(node);
@@ -739,13 +739,13 @@ module ts {
             write("import ");
             writeTextOfNode(currentSourceFile, node.name);
             write(" = ");
-            if (isInternalModuleImportDeclaration(node)) {
+            if (isInternalModuleImportEqualsDeclaration(node)) {
                 emitTypeWithNewGetSymbolAccessibilityDiagnostic(<EntityName>node.moduleReference, getImportEntityNameVisibilityError);
                 write(";");
             }
             else {
                 write("require(");
-                writeTextOfNode(currentSourceFile, getExternalModuleImportDeclarationExpression(node));
+                writeTextOfNode(currentSourceFile, getExternalModuleImportEqualsDeclarationExpression(node));
                 write(");");
             }
             writer.writeLine();
@@ -1470,8 +1470,8 @@ module ts {
                     return emitEnumDeclaration(<EnumDeclaration>node);
                 case SyntaxKind.ModuleDeclaration:
                     return emitModuleDeclaration(<ModuleDeclaration>node);
-                case SyntaxKind.ImportDeclaration:
-                    return emitImportDeclaration(<ImportDeclaration>node);
+                case SyntaxKind.ImportEqualsDeclaration:
+                    return emitImportEqualsDeclaration(<ImportEqualsDeclaration>node);
                 case SyntaxKind.ExportAssignment:
                     return emitExportAssignment(<ExportAssignment>node);
                 case SyntaxKind.SourceFile:
@@ -2262,7 +2262,7 @@ module ts {
                     case SyntaxKind.InterfaceDeclaration:
                     case SyntaxKind.EnumDeclaration:
                     case SyntaxKind.ModuleDeclaration:
-                    case SyntaxKind.ImportDeclaration:
+                    case SyntaxKind.ImportEqualsDeclaration:
                         return (<Declaration>parent).name === node;
                     case SyntaxKind.BreakStatement:
                     case SyntaxKind.ContinueStatement:
@@ -3836,18 +3836,18 @@ module ts {
                 emitEnd(node);
             }
 
-            function emitImportDeclaration(node: ImportDeclaration) {
-                var emitImportDeclaration = resolver.isReferencedImportDeclaration(node);
+            function emitImportEqualsDeclaration(node: ImportEqualsDeclaration) {
+                var emitImportDeclaration = resolver.isReferencedImportEqualsDeclaration(node);
 
                 if (!emitImportDeclaration) {
                     // preserve old compiler's behavior: emit 'var' for import declaration (even if we do not consider them referenced) when
                     // - current file is not external module
                     // - import declaration is top level and target is value imported by entity name
-                    emitImportDeclaration = !isExternalModule(currentSourceFile) && resolver.isTopLevelValueImportWithEntityName(node);
+                    emitImportDeclaration = !isExternalModule(currentSourceFile) && resolver.isTopLevelValueImportEqualsWithEntityName(node);
                 }
 
                 if (emitImportDeclaration) {
-                    if (isExternalModuleImportDeclaration(node) && node.parent.kind === SyntaxKind.SourceFile && compilerOptions.module === ModuleKind.AMD) {
+                    if (isExternalModuleImportEqualsDeclaration(node) && node.parent.kind === SyntaxKind.SourceFile && compilerOptions.module === ModuleKind.AMD) {
                         if (node.flags & NodeFlags.Export) {
                             writeLine();
                             emitLeadingComments(node);
@@ -3867,11 +3867,11 @@ module ts {
                         if (!(node.flags & NodeFlags.Export)) write("var ");
                         emitModuleMemberName(node);
                         write(" = ");
-                        if (isInternalModuleImportDeclaration(node)) {
+                        if (isInternalModuleImportEqualsDeclaration(node)) {
                             emit(node.moduleReference);
                         }
                         else {
-                            var literal = <LiteralExpression>getExternalModuleImportDeclarationExpression(node);
+                            var literal = <LiteralExpression>getExternalModuleImportEqualsDeclarationExpression(node);
                             write("require(");
                             emitStart(literal);
                             emitLiteral(literal);
@@ -3885,11 +3885,11 @@ module ts {
                 }
             }
 
-            function getExternalImportDeclarations(node: SourceFile): ImportDeclaration[] {
-                var result: ImportDeclaration[] = [];
+            function getExternalImportEqualsDeclarations(node: SourceFile): ImportEqualsDeclaration[] {
+                var result: ImportEqualsDeclaration[] = [];
                 forEach(node.statements, statement => {
-                    if (isExternalModuleImportDeclaration(statement) && resolver.isReferencedImportDeclaration(<ImportDeclaration>statement)) {
-                        result.push(<ImportDeclaration>statement);
+                    if (isExternalModuleImportEqualsDeclaration(statement) && resolver.isReferencedImportEqualsDeclaration(<ImportEqualsDeclaration>statement)) {
+                        result.push(<ImportEqualsDeclaration>statement);
                     }
                 });
                 return result;
@@ -3904,7 +3904,7 @@ module ts {
             }
 
             function emitAMDModule(node: SourceFile, startIndex: number) {
-                var imports = getExternalImportDeclarations(node);
+                var imports = getExternalImportEqualsDeclarations(node);
                 writeLine();
                 write("define(");
                 if (node.amdModuleName) {
@@ -3913,7 +3913,7 @@ module ts {
                 write("[\"require\", \"exports\"");
                 forEach(imports, imp => {
                     write(", ");
-                    emitLiteral(<LiteralExpression>getExternalModuleImportDeclarationExpression(imp));
+                    emitLiteral(<LiteralExpression>getExternalModuleImportEqualsDeclarationExpression(imp));
                 });
                 forEach(node.amdDependencies, amdDependency => {
                     var text = "\"" + amdDependency + "\"";
@@ -4212,8 +4212,8 @@ module ts {
                         return emitEnumMember(<EnumMember>node);
                     case SyntaxKind.ModuleDeclaration:
                         return emitModuleDeclaration(<ModuleDeclaration>node);
-                    case SyntaxKind.ImportDeclaration:
-                        return emitImportDeclaration(<ImportDeclaration>node);
+                    case SyntaxKind.ImportEqualsDeclaration:
+                        return emitImportEqualsDeclaration(<ImportEqualsDeclaration>node);
                     case SyntaxKind.SourceFile:
                         return emitSourceFile(<SourceFile>node);
                 }
