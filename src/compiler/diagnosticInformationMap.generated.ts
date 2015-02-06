@@ -379,6 +379,7 @@ module ts {
         const_enum_member_initializer_was_evaluated_to_a_non_finite_value: { code: 4086, category: DiagnosticCategory.Error, key: "'const' enum member initializer was evaluated to a non-finite value." },
         const_enum_member_initializer_was_evaluated_to_disallowed_value_NaN: { code: 4087, category: DiagnosticCategory.Error, key: "'const' enum member initializer was evaluated to disallowed value 'NaN'." },
         Property_0_does_not_exist_on_const_enum_1: { code: 4088, category: DiagnosticCategory.Error, key: "Property '{0}' does not exist on 'const' enum '{1}'." },
+        For_of_statements_are_only_available_when_targeting_ECMAScript_6_or_higher: { code: 4089, category: DiagnosticCategory.Error, key: "For-of statements are only available when targeting ECMAScript 6 or higher" },
         The_current_host_does_not_support_the_0_option: { code: 5001, category: DiagnosticCategory.Error, key: "The current host does not support the '{0}' option." },
         Cannot_find_the_common_subdirectory_path_for_the_input_files: { code: 5009, category: DiagnosticCategory.Error, key: "Cannot find the common subdirectory path for the input files." },
         Cannot_read_file_0_Colon_1: { code: 5012, category: DiagnosticCategory.Error, key: "Cannot read file '{0}': {1}" },

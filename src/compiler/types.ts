@@ -143,7 +143,7 @@ module ts {
         SetKeyword,
         StringKeyword,
         TypeKeyword,
-
+        OfKeyword,
         // Parse tree nodes
 
         // Names
@@ -212,6 +212,7 @@ module ts {
         WhileStatement,
         ForStatement,
         ForInStatement,
+        ForOfStatement,
         ContinueStatement,
         BreakStatement,
         ReturnStatement,
@@ -270,7 +271,7 @@ module ts {
         FirstReservedWord = BreakKeyword,
         LastReservedWord = WithKeyword,
         FirstKeyword = BreakKeyword,
-        LastKeyword = TypeKeyword,
+        LastKeyword = OfKeyword,
         FirstFutureReservedWord = ImplementsKeyword,
         LastFutureReservedWord = YieldKeyword,
         FirstTypeNode = TypeReference,
@@ -760,6 +761,11 @@ module ts {
     }
 
     export interface ForInStatement extends IterationStatement {
+        initializer: VariableDeclarationList | Expression;
+        expression: Expression;
+    }
+
+    export interface ForOfStatement extends IterationStatement {
         initializer: VariableDeclarationList | Expression;
         expression: Expression;
     }

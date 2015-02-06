@@ -8409,6 +8409,13 @@ module ts {
             checkSourceElement(node.statement);
         }
 
+        function checkForOfStatement(node: ForOfStatement) {
+            // TODO: not yet implemented
+            if (!checkGrammarForStatementInAmbientContext(node)) {
+                checkGrammarForOfStatement(node);
+            }
+        }
+
         function checkForInStatement(node: ForInStatement) {
             // Grammar checking 
             if (!checkGrammarForStatementInAmbientContext(node)) {
@@ -9415,6 +9422,8 @@ module ts {
                     return checkForStatement(<ForStatement>node);
                 case SyntaxKind.ForInStatement:
                     return checkForInStatement(<ForInStatement>node);
+                case SyntaxKind.ForOfStatement:
+                    return checkForOfStatement(<ForOfStatement>node);
                 case SyntaxKind.ContinueStatement:
                 case SyntaxKind.BreakStatement:
                     return checkBreakOrContinueStatement(<BreakOrContinueStatement>node);
@@ -10724,6 +10733,12 @@ module ts {
                         return grammarErrorOnNode(name, Diagnostics.An_object_literal_cannot_have_property_and_accessor_with_the_same_name);
                     }
                 }
+            }
+        }
+
+        function checkGrammarForOfStatement(forOfStatement: ForOfStatement): boolean {
+            if (languageVersion < ScriptTarget.ES6) {
+                return grammarErrorOnFirstToken(forOfStatement, Diagnostics.For_of_statements_are_only_available_when_targeting_ECMAScript_6_or_higher);
             }
         }
 

@@ -1547,7 +1547,7 @@ module ts {
 
             // in the case where we're parsing the variable declarator of a 'for-in' statement, we 
             // are done if we see an 'in' keyword in front of us.
-            if (token === SyntaxKind.InKeyword) {
+            if (isInOrOfKeyword(token)) {
                 return true;
             }
 
@@ -3109,6 +3109,10 @@ module ts {
             return parseBinaryExpressionRest(precedence, leftOperand);
         }
 
+        function isInOrOfKeyword(t: SyntaxKind) {
+            return t === SyntaxKind.InKeyword || t === SyntaxKind.OfKeyword;
+        }
+
         function parseBinaryExpressionRest(precedence: number, leftOperand: Expression): Expression {
             while (true) {
                 // We either have a binary operator here, or we're finished.  We call 
@@ -3742,7 +3746,7 @@ module ts {
             return finishNode(node);
         }
 
-        function parseForOrForInStatement(): Statement {
+        function parseForOrForInOrForOfStatement(): Statement {
             var pos = getNodePos();
             parseExpected(SyntaxKind.ForKeyword);
             parseExpected(SyntaxKind.OpenParenToken);
@@ -3756,15 +3760,21 @@ module ts {
                     initializer = disallowInAnd(parseExpression);
                 }
             }
-            var forOrForInStatement: IterationStatement;
+            var forOrForInOrForOfStatement: IterationStatement;
             if (parseOptional(SyntaxKind.InKeyword)) {
                 var forInStatement = <ForInStatement>createNode(SyntaxKind.ForInStatement, pos);
                 forInStatement.initializer = initializer;
                 forInStatement.expression = allowInAnd(parseExpression);
                 parseExpected(SyntaxKind.CloseParenToken);
-                forOrForInStatement = forInStatement;
+                forOrForInOrForOfStatement = forInStatement;
             }
-            else {
+            else if (parseOptional(SyntaxKind.OfKeyword)) {
+                var forOfStatement = <ForOfStatement>createNode(SyntaxKind.ForOfStatement, pos);
+                forOfStatement.initializer = initializer;
+                forOfStatement.expression = allowInAnd(parseAssignmentExpressionOrHigher);
+                parseExpected(SyntaxKind.CloseParenToken);
+                forOrForInOrForOfStatement = forOfStatement;
+            } else {
                 var forStatement = <ForStatement>createNode(SyntaxKind.ForStatement, pos);
                 forStatement.initializer = initializer;
                 parseExpected(SyntaxKind.SemicolonToken);
@@ -3776,12 +3786,12 @@ module ts {
                     forStatement.iterator = allowInAnd(parseExpression);
                 }
                 parseExpected(SyntaxKind.CloseParenToken);
-                forOrForInStatement = forStatement;
+                forOrForInOrForOfStatement = forStatement;
             }
 
-            forOrForInStatement.statement = parseStatement();
+            forOrForInOrForOfStatement.statement = parseStatement();
 
-            return finishNode(forOrForInStatement);
+            return finishNode(forOrForInOrForOfStatement);
         }
 
         function parseBreakOrContinueStatement(kind: SyntaxKind): BreakOrContinueStatement {
@@ -4027,7 +4037,7 @@ module ts {
                 case SyntaxKind.WhileKeyword:
                     return parseWhileStatement();
                 case SyntaxKind.ForKeyword:
-                    return parseForOrForInStatement();
+                    return parseForOrForInOrForOfStatement();
                 case SyntaxKind.ContinueKeyword:
                     return parseBreakOrContinueStatement(SyntaxKind.ContinueStatement);
                 case SyntaxKind.BreakKeyword:
@@ -4169,7 +4179,9 @@ module ts {
             var node = <VariableDeclaration>createNode(SyntaxKind.VariableDeclaration);
             node.name = parseIdentifierOrPattern();
             node.type = parseTypeAnnotation();
-            node.initializer = parseInitializer(/*inParameter*/ false);
+            if (!isInOrOfKeyword(token)) {
+                node.initializer = parseInitializer(/*inParameter*/ false);
+            }
             return finishNode(node);
         }
 

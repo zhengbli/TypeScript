@@ -1509,6 +1509,10 @@
         "category": "Error",
         "code": 4088
     },
+    "For-of statements are only available when targeting ECMAScript 6 or higher": {
+        "category": "Error",
+        "code": 4089
+    },
     "The current host does not support the '{0}' option.": {
         "category": "Error",
         "code": 5001
