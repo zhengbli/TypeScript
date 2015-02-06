@@ -95,6 +95,7 @@ module ts {
         "while": SyntaxKind.WhileKeyword,
         "with": SyntaxKind.WithKeyword,
         "yield": SyntaxKind.YieldKeyword,
+        "of": SyntaxKind.OfKeyword,
         "{": SyntaxKind.OpenBraceToken,
         "}": SyntaxKind.CloseBraceToken,
         "(": SyntaxKind.OpenParenToken,

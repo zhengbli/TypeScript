@@ -2920,7 +2920,7 @@ module ts {
                 emitEmbeddedStatement(node.statement);
             }
 
-            function emitForInStatement(node: ForInStatement) {
+            function emitForInOrForOfStatement(node: ForInStatement | ForOfStatement) {
                 var endPos = emitToken(SyntaxKind.ForKeyword, node.pos);
                 write(" ");
                 endPos = emitToken(SyntaxKind.OpenParenToken, endPos);
@@ -2941,7 +2941,13 @@ module ts {
                 else {
                     emit(node.initializer);
                 }
-                write(" in ");
+
+                if (node.kind === SyntaxKind.ForInStatement) {
+                    write(" in ");
+                }
+                else {
+                    write(" of ");
+                }
                 emit(node.expression);
                 emitToken(SyntaxKind.CloseParenToken, node.expression.end);
                 emitEmbeddedStatement(node.statement);
@@ -4551,8 +4557,9 @@ module ts {
                         return emitWhileStatement(<WhileStatement>node);
                     case SyntaxKind.ForStatement:
                         return emitForStatement(<ForStatement>node);
+                    case SyntaxKind.ForOfStatement:
                     case SyntaxKind.ForInStatement:
-                        return emitForInStatement(<ForInStatement>node);
+                        return emitForInOrForOfStatement(<ForInStatement>node);
                     case SyntaxKind.ContinueStatement:
                     case SyntaxKind.BreakStatement:
                         return emitBreakOrContinueStatement(<BreakOrContinueStatement>node);
