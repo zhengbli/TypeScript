@@ -1,0 +1,21 @@
+lib.d.ts(1234,1): error TS2394: Overload signature is not compatible with function implementation.
+tests/cases/compiler/assignmentCompatForEnums.ts(6,10): error TS2384: Overload signatures must all be ambient or non-ambient.
+
+
+==== tests/cases/compiler/assignmentCompatForEnums.ts (1 errors) ====
+    enum TokenType { One, Two };
+    
+    var list = {};
+    
+    
+    function returnType(): TokenType { return null; }
+             ~~~~~~~~~~
+!!! error TS2384: Overload signatures must all be ambient or non-ambient.
+    
+    function foo() {
+        var x = returnType();
+    
+        var x: TokenType = list['one'];
+    }
+    
+    

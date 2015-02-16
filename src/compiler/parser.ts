@@ -64,7 +64,8 @@ module ts {
             case SyntaxKind.ShorthandPropertyAssignment:
             case SyntaxKind.VariableDeclaration:
             case SyntaxKind.BindingElement:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<VariableLikeDeclaration>node).propertyName) ||
                     visitNode(cbNode, (<VariableLikeDeclaration>node).dotDotDotToken) ||
                     visitNode(cbNode, (<VariableLikeDeclaration>node).name) ||
@@ -76,7 +77,8 @@ module ts {
             case SyntaxKind.CallSignature:
             case SyntaxKind.ConstructSignature:
             case SyntaxKind.IndexSignature:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNodes(cbNodes, (<SignatureDeclaration>node).typeParameters) ||
                     visitNodes(cbNodes, (<SignatureDeclaration>node).parameters) ||
                     visitNode(cbNode, (<SignatureDeclaration>node).type);
@@ -88,7 +90,8 @@ module ts {
             case SyntaxKind.FunctionExpression:
             case SyntaxKind.FunctionDeclaration:
             case SyntaxKind.ArrowFunction:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<FunctionLikeDeclaration>node).asteriskToken) ||
                     visitNode(cbNode, (<FunctionLikeDeclaration>node).name) ||
                     visitNode(cbNode, (<FunctionLikeDeclaration>node).questionToken) ||
@@ -166,7 +169,8 @@ module ts {
                 return visitNodes(cbNodes, (<SourceFile>node).statements) ||
                     visitNode(cbNode, (<SourceFile>node).endOfFileToken);
             case SyntaxKind.VariableStatement:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<VariableStatement>node).declarationList);
             case SyntaxKind.VariableDeclarationList:
                 return visitNodes(cbNodes, (<VariableDeclarationList>node).declarations);
@@ -224,31 +228,38 @@ module ts {
                 return visitNode(cbNode, (<CatchClause>node).name) ||
                     visitNode(cbNode, (<CatchClause>node).type) ||
                     visitNode(cbNode, (<CatchClause>node).block);
+            case SyntaxKind.Decorator:
+                return visitNode(cbNode, (<Decorator>node).expression);
             case SyntaxKind.ClassDeclaration:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<ClassDeclaration>node).name) ||
                     visitNodes(cbNodes, (<ClassDeclaration>node).typeParameters) ||
                     visitNodes(cbNodes, (<ClassDeclaration>node).heritageClauses) ||
                     visitNodes(cbNodes, (<ClassDeclaration>node).members);
             case SyntaxKind.InterfaceDeclaration:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<InterfaceDeclaration>node).name) ||
                     visitNodes(cbNodes, (<InterfaceDeclaration>node).typeParameters) ||
                     visitNodes(cbNodes, (<ClassDeclaration>node).heritageClauses) ||
                     visitNodes(cbNodes, (<InterfaceDeclaration>node).members);
             case SyntaxKind.TypeAliasDeclaration:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<TypeAliasDeclaration>node).name) ||
                     visitNode(cbNode, (<TypeAliasDeclaration>node).type);
             case SyntaxKind.EnumDeclaration:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<EnumDeclaration>node).name) ||
                     visitNodes(cbNodes, (<EnumDeclaration>node).members);
             case SyntaxKind.EnumMember:
                 return visitNode(cbNode, (<EnumMember>node).name) ||
                     visitNode(cbNode, (<EnumMember>node).initializer);
             case SyntaxKind.ModuleDeclaration:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<ModuleDeclaration>node).name) ||
                     visitNode(cbNode, (<ModuleDeclaration>node).body);
             case SyntaxKind.ImportEqualsDeclaration:
@@ -256,7 +267,8 @@ module ts {
                     visitNode(cbNode, (<ImportEqualsDeclaration>node).name) ||
                     visitNode(cbNode, (<ImportEqualsDeclaration>node).moduleReference);
             case SyntaxKind.ImportDeclaration:
-                return visitNodes(cbNodes, node.modifiers) ||
+               return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<ImportDeclaration>node).importClause) ||
                     visitNode(cbNode, (<ImportDeclaration>node).moduleSpecifier);
             case SyntaxKind.ImportClause:
@@ -268,7 +280,8 @@ module ts {
             case SyntaxKind.NamedExports:
                 return visitNodes(cbNodes, (<NamedImportsOrExports>node).elements);
             case SyntaxKind.ExportDeclaration:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<ExportDeclaration>node).exportClause) ||
                     visitNode(cbNode, (<ExportDeclaration>node).moduleSpecifier);
             case SyntaxKind.ImportSpecifier:
@@ -276,7 +289,8 @@ module ts {
                 return visitNode(cbNode, (<ImportOrExportSpecifier>node).propertyName) ||
                     visitNode(cbNode, (<ImportOrExportSpecifier>node).name);
             case SyntaxKind.ExportAssignment:
-                return visitNodes(cbNodes, node.modifiers) ||
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers) ||
                     visitNode(cbNode, (<ExportAssignment>node).exportName);
             case SyntaxKind.TemplateExpression:
                 return visitNode(cbNode, (<TemplateExpression>node).head) || visitNodes(cbNodes, (<TemplateExpression>node).templateSpans);
@@ -288,6 +302,9 @@ module ts {
                 return visitNodes(cbNodes, (<HeritageClause>node).types);
             case SyntaxKind.ExternalModuleReference:
                 return visitNode(cbNode, (<ExternalModuleReference>node).expression);
+            case SyntaxKind.IncompleteDeclaration:
+                return visitNodes(cbNodes, node.decorators) ||
+                    visitNodes(cbNodes, node.modifiers);
         }
     }
 
@@ -320,6 +337,12 @@ module ts {
         False,
         True,
         Unknown
+    }
+
+    interface SignatureResult {
+        typeParameters?: NodeArray<TypeParameterDeclaration>;
+        parameters?: NodeArray<ParameterDeclaration>;
+        type?: TypeNode;
     }
 
     function parsingContextErrors(context: ParsingContext): DiagnosticMessage {
@@ -984,7 +1007,7 @@ module ts {
         var identifierCount = 0;
         var nodeCount = 0;
         var token: SyntaxKind;
-
+        
         var sourceFile = <SourceFile>createNode(SyntaxKind.SourceFile, /*pos*/ 0);
 
         sourceFile.pos = 0;
@@ -1122,6 +1145,10 @@ module ts {
             setContextFlag(val, ParserContextFlags.GeneratorParameter);
         }
 
+        function setDecoratorContext(val: boolean) {
+            setContextFlag(val, ParserContextFlags.Decorator);
+        }
+
         function allowInAnd<T>(func: () => T): T {
             if (contextFlags & ParserContextFlags.DisallowIn) {
                 setDisallowInContext(false);
@@ -1170,6 +1197,28 @@ module ts {
             return func();
         }
 
+        function doInDecoratorContext<T>(func: () => T): T {
+            if (contextFlags & ParserContextFlags.Decorator) {
+                return func();
+            }
+
+            setDecoratorContext(true);
+            var result = func();
+            setDecoratorContext(false);
+            return result;
+        }
+
+        function doOutsideOfDecoratorContext<T>(func: () => T): T {
+            if (contextFlags & ParserContextFlags.Decorator) {
+                return func();
+            }
+
+            setDecoratorContext(true);
+            var result = func();
+            setDecoratorContext(false);
+            return result;
+        }
+
         function inYieldContext() {
             return (contextFlags & ParserContextFlags.Yield) !== 0;
         }
@@ -1184,6 +1233,10 @@ module ts {
 
         function inDisallowInContext() {
             return (contextFlags & ParserContextFlags.DisallowIn) !== 0;
+        }
+
+        function inDecoratorContext() {
+            return (contextFlags & ParserContextFlags.Decorator) !== 0;
         }
 
         function parseErrorAtCurrentToken(message: DiagnosticMessage, arg0?: any): void {
@@ -1369,8 +1422,12 @@ module ts {
             return node;
         }
 
-        function finishNode<T extends Node>(node: T): T {
-            node.end = scanner.getStartPos();
+        function finishNode<T extends Node>(node: T, end?: number): T {
+            if (!(end >= 0)) {
+                end = scanner.getStartPos();
+            }
+
+            node.end = end;
 
             if (contextFlags) {
                 node.parserContextFlags = contextFlags;
@@ -1385,6 +1442,13 @@ module ts {
             }
 
             return node;
+        }
+
+        function createMissingNodeAtPosition(pos: number, kind: SyntaxKind, diagnosticMessage: DiagnosticMessage, arg0?: any): Node {
+            parseErrorAtPosition(pos, 0, diagnosticMessage, arg0);
+            var result = createNode(kind, pos);
+            (<Identifier>result).text = "";
+            return finishNode(result, pos);
         }
 
         function createMissingNode(kind: SyntaxKind, reportAtCurrentPosition: boolean, diagnosticMessage: DiagnosticMessage, arg0?: any): Node {
@@ -2247,7 +2311,7 @@ module ts {
         }
 
         function isStartOfParameter(): boolean {
-            return token === SyntaxKind.DotDotDotToken || isIdentifierOrPattern() || isModifier(token);
+            return token === SyntaxKind.DotDotDotToken || isIdentifierOrPattern() || isModifier(token) || token === SyntaxKind.AtToken;
         }
 
         function setModifiers(node: Node, modifiers: ModifiersArray) {
@@ -2259,6 +2323,7 @@ module ts {
 
         function parseParameter(): ParameterDeclaration {
             var node = <ParameterDeclaration>createNode(SyntaxKind.Parameter);
+            node.decorators = parseDecorators();
             setModifiers(node, parseModifiers());
             node.dotDotDotToken = parseOptionalToken(SyntaxKind.DotDotDotToken);
 
@@ -2450,9 +2515,9 @@ module ts {
             return token === SyntaxKind.ColonToken || token === SyntaxKind.CommaToken || token === SyntaxKind.CloseBracketToken;
         }
 
-        function parseIndexSignatureDeclaration(modifiers: ModifiersArray): IndexSignatureDeclaration {
-            var fullStart = modifiers ? modifiers.pos : scanner.getStartPos();
+        function parseIndexSignatureDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): IndexSignatureDeclaration {
             var node = <IndexSignatureDeclaration>createNode(SyntaxKind.IndexSignature, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             node.parameters = parseBracketedList(ParsingContext.Parameters, parseParameter, SyntaxKind.OpenBracketToken, SyntaxKind.CloseBracketToken);
             node.type = parseTypeAnnotation();
@@ -2529,7 +2594,7 @@ module ts {
                 case SyntaxKind.OpenBracketToken:
                     // Indexer or computed property
                     return isIndexSignature()
-                        ? parseIndexSignatureDeclaration(/*modifiers:*/ undefined)
+                        ? parseIndexSignatureDeclaration(scanner.getStartPos(), /*decorators*/ undefined, /*modifiers:*/ undefined)
                         : parsePropertyOrMethodSignature();
                 case SyntaxKind.NewKeyword:
                     if (lookAhead(isStartOfConstructSignature)) {
@@ -2560,9 +2625,11 @@ module ts {
         }
 
         function parseIndexSignatureWithModifiers() {
+            var fullStart = scanner.getStartPos();
+            var decorators = parseDecorators();
             var modifiers = parseModifiers();
             return isIndexSignature()
-                ? parseIndexSignatureDeclaration(modifiers)
+                ? parseIndexSignatureDeclaration(fullStart, decorators, modifiers)
                 : undefined;
         }
 
@@ -2816,7 +2883,7 @@ module ts {
 
         function isStartOfExpressionStatement(): boolean {
             // As per the grammar, neither '{' nor 'function' can start an expression statement.
-            return token !== SyntaxKind.OpenBraceToken && token !== SyntaxKind.FunctionKeyword && isStartOfExpression();
+            return token !== SyntaxKind.OpenBraceToken && token !== SyntaxKind.FunctionKeyword && token !== SyntaxKind.AtToken && isStartOfExpression();
         }
 
         function parseExpression(): Expression {
@@ -2824,10 +2891,16 @@ module ts {
             //      AssignmentExpression[in] 
             //      Expression[in] , AssignmentExpression[in]
 
+            // clear the decorator context when parsing Expression, as it should be unambiguous when parsing a decorator
+            var saveDecoratorContext = inDecoratorContext();
+            if (saveDecoratorContext) setDecoratorContext(false);
+
             var expr = parseAssignmentExpressionOrHigher();
             while (parseOptional(SyntaxKind.CommaToken)) {
                 expr = makeBinaryExpression(expr, SyntaxKind.CommaToken, parseAssignmentExpressionOrHigher());
             }
+
+            if (saveDecoratorContext) setDecoratorContext(true);
             return expr;
         }
 
@@ -3506,7 +3579,16 @@ module ts {
         function parseCallExpressionRest(expression: LeftHandSideExpression): LeftHandSideExpression {
             while (true) {
                 expression = parseMemberExpressionRest(expression);
-
+                if (inDecoratorContext() &&
+                    parsingContext === ParsingContext.ClassMembers &&
+                    (token === SyntaxKind.LessThanToken || token === SyntaxKind.OpenParenToken) &&
+                    (expression.kind === SyntaxKind.ElementAccessExpression || expression.kind === SyntaxKind.Identifier)) {
+                    // TODO(rbuckton): switch to tryParse and reuse the parsed signature information?
+                    var result = lookAhead(isStartOfMethodSignature);
+                    if (result) {
+                        return expression;
+                    }
+                }
                 if (token === SyntaxKind.LessThanToken) {
                     // See if this is the start of a generic invocation.  If so, consume it and
                     // keep checking for postfix expressions.  Otherwise, it's just a '<' that's 
@@ -3534,6 +3616,28 @@ module ts {
 
                 return expression;
             }
+        }
+
+        function isStartOfMethodSignature() {
+            // try to parse it as a signature, if successful and we are followed by an open brace or semicolon, this is really a method signature
+            var parameters: NodeArray<ParameterDeclaration>;
+            var type: TypeNode;
+            if (token === SyntaxKind.LessThanToken && !parseTypeParameters()) {
+                // failed to parse type parameters here, this is not a method
+                return false;                
+            }
+            if (token === SyntaxKind.OpenParenToken) {
+                if (!parseParameterList(/*yieldAndGeneratorParameterContext*/ false, /*requireCompleteParameterList*/ true)) {
+                    // failed to parse a parameter list here, this is not a method
+                    return false;
+                }
+                if (token === SyntaxKind.ColonToken || token === SyntaxKind.SemicolonToken || token === SyntaxKind.OpenBraceToken) {
+                    // found a type annotation, semicolon, or open brace, this is a method signature
+                    type = parseTypeAnnotation();
+                    return true;
+                }
+            }
+            return false;
         }
 
         function parseArgumentList() {
@@ -3665,12 +3769,12 @@ module ts {
             return finishNode(node);
         }
 
-        function tryParseAccessorDeclaration(fullStart: number, modifiers: ModifiersArray): AccessorDeclaration {
+        function tryParseAccessorDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): AccessorDeclaration {
             if (parseContextualModifier(SyntaxKind.GetKeyword)) {
-                return parseAccessorDeclaration(SyntaxKind.GetAccessor, fullStart, modifiers);
+                return parseAccessorDeclaration(SyntaxKind.GetAccessor, fullStart, decorators, modifiers);
             }
             else if (parseContextualModifier(SyntaxKind.SetKeyword)) {
-                return parseAccessorDeclaration(SyntaxKind.SetAccessor, fullStart, modifiers);
+                return parseAccessorDeclaration(SyntaxKind.SetAccessor, fullStart, decorators, modifiers);
             }
 
             return undefined;
@@ -3678,9 +3782,10 @@ module ts {
 
         function parseObjectLiteralElement(): ObjectLiteralElement {
             var fullStart = scanner.getStartPos();
+            var decorators = parseDecorators();
             var modifiers = parseModifiers();
 
-            var accessor = tryParseAccessorDeclaration(fullStart, modifiers);
+            var accessor = tryParseAccessorDeclaration(fullStart, decorators, modifiers);
             if (accessor) {
                 return accessor;
             }
@@ -3693,7 +3798,7 @@ module ts {
             // Disallowing of optional property assignments happens in the grammar checker.
             var questionToken = parseOptionalToken(SyntaxKind.QuestionToken);
             if (asteriskToken || token === SyntaxKind.OpenParenToken || token === SyntaxKind.LessThanToken) {
-                return parseMethodDeclaration(fullStart, modifiers, asteriskToken, propertyName, questionToken);
+                return parseMethodDeclaration(fullStart, decorators, modifiers, asteriskToken, propertyName, questionToken);
             }
 
             // Parse to check if it is short-hand property assignment or normal property assignment
@@ -3730,12 +3835,19 @@ module ts {
             //      function * BindingIdentifier[Yield]opt (FormalParameters[Yield, GeneratorParameter]) { GeneratorBody[Yield] }
             // FunctionExpression:
             //      function BindingIdentifieropt(FormalParameters) { FunctionBody }
+            var saveDecoratorContext = inDecoratorContext();
+            if (saveDecoratorContext) {
+                setDecoratorContext(false);
+            }
             var node = <FunctionExpression>createNode(SyntaxKind.FunctionExpression);
             parseExpected(SyntaxKind.FunctionKeyword);
             node.asteriskToken = parseOptionalToken(SyntaxKind.AsteriskToken);
             node.name = node.asteriskToken ? doInYieldContext(parseOptionalIdentifier) : parseOptionalIdentifier();
             fillSignature(SyntaxKind.ColonToken, /*yieldAndGeneratorParameterContext:*/ !!node.asteriskToken, /*requireCompleteParameterList:*/ false, node);
             node.body = parseFunctionBlock(/*allowYield:*/ !!node.asteriskToken, /* ignoreMissingOpenBrace */ false);
+            if (saveDecoratorContext) {
+                setDecoratorContext(true);
+            }
             return finishNode(node);
         }
 
@@ -3772,7 +3884,16 @@ module ts {
             var savedYieldContext = inYieldContext();
             setYieldContext(allowYield);
 
+            var saveDecoratorContext = inDecoratorContext();
+            if (saveDecoratorContext) {
+                setDecoratorContext(false);
+            }
+
             var block = parseBlock(ignoreMissingOpenBrace, /*checkForStrictMode*/ true, diagnosticMessage);
+
+            if (saveDecoratorContext) {
+                setDecoratorContext(true);
+            }
 
             setYieldContext(savedYieldContext);
 
@@ -4102,9 +4223,9 @@ module ts {
                 case SyntaxKind.VarKeyword:
                 case SyntaxKind.ConstKeyword:
                     // const here should always be parsed as const declaration because of check in 'isStatement' 
-                    return parseVariableStatement(scanner.getStartPos(), /*modifiers:*/ undefined);
+                    return parseVariableStatement(scanner.getStartPos(), /*decorators*/ undefined, /*modifiers:*/ undefined);
                 case SyntaxKind.FunctionKeyword:
-                    return parseFunctionDeclaration(scanner.getStartPos(), /*modifiers:*/ undefined);
+                    return parseFunctionDeclaration(scanner.getStartPos(), /*decorators*/ undefined, /*modifiers:*/ undefined);
                 case SyntaxKind.SemicolonToken:
                     return parseEmptyStatement();
                 case SyntaxKind.IfKeyword:
@@ -4137,7 +4258,7 @@ module ts {
                 case SyntaxKind.LetKeyword:
                     // If let follows identifier on the same line, it is declaration parse it as variable statement
                     if (isLetDeclaration()) {
-                        return parseVariableStatement(scanner.getStartPos(), /*modifiers:*/ undefined);
+                        return parseVariableStatement(scanner.getStartPos(), /*decorators*/ undefined, /*modifiers:*/ undefined);
                     }
                 // Else parse it like identifier - fall through
                 default:
@@ -4147,7 +4268,9 @@ module ts {
                     // work properly when incrementally parsing as the parser will produce the
                     // same FunctionDeclaraiton or VariableStatement if it has the same text
                     // regardless of whether it is inside a block or not.
-                    if (isModifier(token)) {
+                    // Even though variable statements and function declarations cannot have decorators, 
+                    // we parse them here to provide better error recovery.
+                    if (isModifier(token) || token === SyntaxKind.AtToken) {
                         var result = tryParse(parseVariableStatementOrFunctionDeclarationWithModifiers);
                         if (result) {
                             return result;
@@ -4160,6 +4283,7 @@ module ts {
 
         function parseVariableStatementOrFunctionDeclarationWithModifiers(): FunctionDeclaration | VariableStatement {
             var start = scanner.getStartPos();
+            var decorators = parseDecorators();
             var modifiers = parseModifiers();
             switch (token) {
                 case SyntaxKind.ConstKeyword:
@@ -4167,18 +4291,18 @@ module ts {
                     if (nextTokenIsEnum) {
                         return undefined;
                     }
-                    return parseVariableStatement(start, modifiers);
+                    return parseVariableStatement(start, decorators, modifiers);
 
                 case SyntaxKind.LetKeyword:
                     if (!isLetDeclaration()) {
                         return undefined;
                     }
-                    return parseVariableStatement(start, modifiers);
+                    return parseVariableStatement(start, decorators, modifiers);
 
                 case SyntaxKind.VarKeyword:
-                    return parseVariableStatement(start, modifiers);
+                    return parseVariableStatement(start, decorators, modifiers);
                 case SyntaxKind.FunctionKeyword:
-                    return parseFunctionDeclaration(start, modifiers);
+                    return parseFunctionDeclaration(start, decorators, modifiers);
             }
 
             return undefined;
@@ -4289,16 +4413,18 @@ module ts {
             return finishNode(node);
         }
 
-        function parseVariableStatement(fullStart: number, modifiers: ModifiersArray): VariableStatement {
+        function parseVariableStatement(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): VariableStatement {
             var node = <VariableStatement>createNode(SyntaxKind.VariableStatement, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             node.declarationList = parseVariableDeclarationList(/*disallowIn:*/ false);
             parseSemicolon();
             return finishNode(node);
         }
 
-        function parseFunctionDeclaration(fullStart: number, modifiers: ModifiersArray): FunctionDeclaration {
+        function parseFunctionDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): FunctionDeclaration {
             var node = <FunctionDeclaration>createNode(SyntaxKind.FunctionDeclaration, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             parseExpected(SyntaxKind.FunctionKeyword);
             node.asteriskToken = parseOptionalToken(SyntaxKind.AsteriskToken);
@@ -4308,8 +4434,9 @@ module ts {
             return finishNode(node);
         }
 
-        function parseConstructorDeclaration(pos: number, modifiers: ModifiersArray): ConstructorDeclaration {
+        function parseConstructorDeclaration(pos: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): ConstructorDeclaration {
             var node = <ConstructorDeclaration>createNode(SyntaxKind.Constructor, pos);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             parseExpected(SyntaxKind.ConstructorKeyword);
             fillSignature(SyntaxKind.ColonToken, /*yieldAndGeneratorParameterContext:*/ false, /*requireCompleteParameterList:*/ false, node);
@@ -4317,8 +4444,9 @@ module ts {
             return finishNode(node);
         }
 
-        function parseMethodDeclaration(fullStart: number, modifiers: ModifiersArray, asteriskToken: Node, name: DeclarationName, questionToken: Node, diagnosticMessage?: DiagnosticMessage): MethodDeclaration {
+        function parseMethodDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray, asteriskToken: Node, name: DeclarationName, questionToken: Node, diagnosticMessage?: DiagnosticMessage): MethodDeclaration {
             var method = <MethodDeclaration>createNode(SyntaxKind.MethodDeclaration, fullStart);
+            method.decorators = decorators;
             setModifiers(method, modifiers);
             method.asteriskToken = asteriskToken;
             method.name = name;
@@ -4328,7 +4456,7 @@ module ts {
             return finishNode(method);
         }
 
-        function parsePropertyOrMethodDeclaration(fullStart: number, modifiers: ModifiersArray): ClassElement {
+        function parsePropertyOrMethodDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): ClassElement {
             var asteriskToken = parseOptionalToken(SyntaxKind.AsteriskToken);
             var name = parsePropertyName();
 
@@ -4336,10 +4464,11 @@ module ts {
             // report an error in the grammar checker.
             var questionToken = parseOptionalToken(SyntaxKind.QuestionToken);
             if (asteriskToken || token === SyntaxKind.OpenParenToken || token === SyntaxKind.LessThanToken) {
-                return parseMethodDeclaration(fullStart, modifiers, asteriskToken, name, questionToken, Diagnostics.or_expected);
+                return parseMethodDeclaration(fullStart, decorators, modifiers, asteriskToken, name, questionToken, Diagnostics.or_expected);
             }
             else {
                 var property = <PropertyDeclaration>createNode(SyntaxKind.PropertyDeclaration, fullStart);
+                property.decorators = decorators;
                 setModifiers(property, modifiers);
                 property.name = name;
                 property.questionToken = questionToken;
@@ -4354,8 +4483,9 @@ module ts {
             return parseInitializer(/*inParameter*/ false);
         }
 
-        function parseAccessorDeclaration(kind: SyntaxKind, fullStart: number, modifiers: ModifiersArray): AccessorDeclaration {
+        function parseAccessorDeclaration(kind: SyntaxKind, fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): AccessorDeclaration {
             var node = <AccessorDeclaration>createNode(kind, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             node.name = parsePropertyName();
             fillSignature(SyntaxKind.ColonToken, /*yieldAndGeneratorParameterContext:*/ false, /*requireCompleteParameterList:*/ false, node);
@@ -4365,6 +4495,10 @@ module ts {
 
         function isClassMemberStart(): boolean {
             var idToken: SyntaxKind;
+
+            if (token === SyntaxKind.AtToken) {
+                return true;
+            }
 
             // Eat up all modifiers, but hold on to the last one in case it is actually an identifier.
             while (isModifier(token)) {
@@ -4417,6 +4551,30 @@ module ts {
             return false;
         }
 
+        function parseDecorators(): NodeArray<Decorator> {
+            var decorators: NodeArray<Decorator>;
+            while (true) {
+                if (token !== SyntaxKind.AtToken) {
+                    break;
+                }
+
+                nextToken();
+
+                if (!decorators) {
+                    decorators = <NodeArray<Decorator>>[];
+                    decorators.pos = scanner.getStartPos();
+                }
+                
+                var decorator = <Decorator>createNode(SyntaxKind.Decorator);
+                decorator.expression = doInDecoratorContext(parseLeftHandSideExpressionOrHigher);
+                decorators.push(finishNode(decorator));
+            }
+            if (decorators) {
+                decorators.end = scanner.getStartPos();
+            }
+            return decorators;
+        }
+
         function parseModifiers(): ModifiersArray {
             var flags = 0;
             var modifiers: ModifiersArray;
@@ -4442,21 +4600,216 @@ module ts {
             return modifiers;
         }
 
+        function extractCallExpressionFromDecoratorTail(decorator: Decorator): CallExpression {
+            // We could have greedily parsed a method signature name as a call expression, so we extract it from the decorator.
+            var expression = decorator.expression;
+            if (expression.kind === SyntaxKind.CallExpression) {
+                decorator.expression = (<CallExpression>expression).expression;
+                decorator.end = decorator.expression.end;
+                return <CallExpression>expression;
+            }
+            return undefined;
+        }
+
+        function extractDeclarationNameFromDecoratorTail(decorator: Decorator): DeclarationName {
+            var expression = decorator.expression;
+            var name: DeclarationName;
+            switch (expression.kind) {
+                case SyntaxKind.Identifier:
+                    // We could have greedily parsed a property name as an identifier, so 
+                    // we extract it from the decorator for a better editor experience:
+                    //      @
+                    //      id() {}
+                    //
+                    decorator.expression = <LeftHandSideExpression>createMissingNodeAtPosition(decorator.pos + 1, SyntaxKind.Identifier, Diagnostics.Expression_expected);
+                    name = <Identifier>expression;
+                    break;
+
+                case SyntaxKind.PropertyAccessExpression:
+                    // We could have greedily parsed a property name as a property access, so we extract it from the decorator
+                    // for a better editor experience.
+                    var propExpr = <PropertyAccessExpression>expression;
+                    if (nodeIsMissing(propExpr.name)) {
+                        name = <Identifier>createMissingNodeAtPosition(decorator.pos + 1, SyntaxKind.Identifier, Diagnostics.Identifier_expected);
+                    }
+                    else {
+                        name = propExpr.name;
+                        propExpr.name = <Identifier>createMissingNodeAtPosition(name.pos, SyntaxKind.Identifier, Diagnostics.Identifier_expected);
+                        propExpr.end = propExpr.name.end;
+                    }
+                    break;
+
+                case SyntaxKind.ArrayLiteralExpression:
+                    // We could have greedily parsed a computed property name as an array literal expression, so 
+                    // we extract it from the decorator for a better editor experience:
+                    //      @
+                    //      ["computed"]() {}
+                    //
+                    var arrayExpr = <ArrayLiteralExpression>expression;
+                    decorator.expression = <LeftHandSideExpression>createMissingNodeAtPosition(decorator.pos + 1, SyntaxKind.Identifier, Diagnostics.Expression_expected);
+
+                    var computedPropertyName = <ComputedPropertyName>createNode(SyntaxKind.ComputedPropertyName, arrayExpr.pos);
+                    if (arrayExpr.elements.length === 0) {
+                        computedPropertyName.expression = <Expression>createMissingNodeAtPosition(arrayExpr.pos + 1, SyntaxKind.Identifier, Diagnostics.Expression_expected);
+                    }
+                    else {
+                        computedPropertyName.expression = arrayExpr.elements[0];
+                        for (var i = 1; i < arrayExpr.elements.length; i++) {
+                            var commaExpr = <BinaryExpression>createNode(SyntaxKind.BinaryExpression, computedPropertyName.expression.pos);
+                            commaExpr.operator = SyntaxKind.CommaToken;
+                            commaExpr.left = computedPropertyName.expression;
+                            commaExpr.right = arrayExpr.elements[i];
+                            computedPropertyName.expression = finishNode(commaExpr, commaExpr.right.end);
+                        }
+                    }
+                    name = finishNode(computedPropertyName, arrayExpr.end);
+                    break;
+
+                case SyntaxKind.ElementAccessExpression:
+                    // We could have greedily parsed a computed property name as an element access, so we extract it from the decorator.
+                    var elementExpr = <ElementAccessExpression>expression;
+                    decorator.expression = elementExpr.expression;
+
+                    var computedPropertyName = <ComputedPropertyName>createNode(SyntaxKind.ComputedPropertyName, elementExpr.argumentExpression.pos);
+                    computedPropertyName.expression = elementExpr.argumentExpression;
+                    name = finishNode(computedPropertyName, elementExpr.end);
+                    break;
+
+                default:
+                    return undefined;
+            }
+
+            decorator.end = decorator.expression.end;
+            return name;
+        }
+
+        function reparseTypeArgumentsAsTypeParameters(typeArguments: NodeArray<TypeNode>): NodeArray<TypeParameterDeclaration> {
+            var typeParameters = <NodeArray<TypeParameterDeclaration>>[];
+            typeParameters.pos = typeArguments.pos;
+            typeParameters.end = typeArguments.end;
+            for (var i = 0; i < typeArguments.length; i++) {
+                var typeArgument = typeArguments[i];
+                var typeParameter = <TypeParameterDeclaration>createNode(SyntaxKind.TypeParameter, typeArgument.pos);
+                Debug.assert(typeArgument.kind === SyntaxKind.TypeReference);
+                var typeReference = <TypeReferenceNode>typeArgument;
+                Debug.assert(typeReference.typeName.kind === SyntaxKind.Identifier);
+                typeParameter.name = <Identifier>typeReference.typeName;
+                finishNode(typeParameter, typeArgument.end);
+                typeParameters.push(typeParameter);
+            }
+            return typeParameters;
+        }
+
+        function reparseArgumentsAsParameters(argumentList: NodeArray<Expression>): NodeArray<ParameterDeclaration> {
+            var parameters = <NodeArray<ParameterDeclaration>>[];
+            parameters.pos = argumentList.pos;
+            parameters.end = argumentList.end;
+            for (var i = 0; i < argumentList.length; i++) {
+                var argument = argumentList[i];
+
+                // TODO: Object literal as object binding
+                // TODO: Array literal as array binding
+                var name: Identifier;
+                var initializer: Expression;
+                if (argument.kind === SyntaxKind.Identifier) {
+                    name = <Identifier>argument;
+                }
+                else if (argument.kind === SyntaxKind.BinaryExpression) {
+                    var binaryExpression = <BinaryExpression>argument;
+                    Debug.assert(binaryExpression.operator === SyntaxKind.EqualsToken);
+                    if (binaryExpression.left.kind === SyntaxKind.Identifier) {
+                        name = <Identifier>binaryExpression.left;
+                        initializer = binaryExpression.right;
+                    }
+                    else {
+                        Debug.fail("Invalid attempt to reclassify expression.");
+                    }
+                }
+                else {
+                    Debug.fail("Invalid attempt to reclassify expression.");
+                }
+
+                var parameter = <ParameterDeclaration>createNode(SyntaxKind.Parameter, argument.pos);
+                parameter.name = name;
+                parameter.initializer = initializer;
+                finishNode(parameter, argument.end);
+                parameters.push(parameter);
+            }
+            return parameters;
+        }
+
+        function reparseCallExpressionAsSignature(node: CallExpression, signature: SignatureDeclaration): void {
+            if (node.typeArguments) {
+                signature.typeParameters = reparseTypeArgumentsAsTypeParameters(node.typeArguments);
+            }
+            signature.parameters = reparseArgumentsAsParameters(node.arguments);
+            signature.type = parseTypeAnnotation();
+        }
+
+        function reparseClassElement(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): ClassElement {
+            // We may have parsed a decorator that greedily included part of the member as its expression. 
+            var lastDecorator = decorators[decorators.length - 1];
+            
+            // TODO(rbuckton): pull out the call expression or declaration name from the consise body of an arrow function
+
+            // If we parsed a call expression, extract the call expression to reparse as a signature
+            var callExpression = extractCallExpressionFromDecoratorTail(lastDecorator);
+
+            // Extract the declaration name from the decorator
+            var name = extractDeclarationNameFromDecoratorTail(lastDecorator);
+            if (name) {
+                var questionToken = parseOptionalToken(SyntaxKind.QuestionToken);
+                if (callExpression) {
+                    // Reparse as a computed property method
+                    var method = <MethodDeclaration>createNode(SyntaxKind.MethodDeclaration, fullStart);
+                    method.decorators = decorators;
+                    setModifiers(method, modifiers);
+                    method.name = name;
+                    method.questionToken = questionToken;
+                    reparseCallExpressionAsSignature(callExpression, method);
+                    method.body = parseFunctionBlockOrSemicolon(/*isGenerator*/ false);
+                    return finishNode(method);
+                }
+                else {
+                    if (token === SyntaxKind.OpenParenToken || token === SyntaxKind.LessThanToken) {
+                        return parseMethodDeclaration(fullStart, decorators, modifiers, /*asteriskToken*/ undefined, name, questionToken, Diagnostics.or_expected);
+                    }
+
+                    // Reparse as a computed property declaration
+                    var property = <PropertyDeclaration>createNode(SyntaxKind.PropertyDeclaration, fullStart);
+                    property.decorators = decorators;
+                    setModifiers(property, modifiers);
+                    property.name = name;
+                    property.type = parseTypeAnnotation();
+                    property.initializer = allowInAnd(parseNonParameterInitializer);
+                    parseSemicolon();
+                    return finishNode(property);
+                }
+            }
+
+            // We couldn't reparse this node, so attach the decorators to an incomplete declaration
+            var incomplete = <ClassElement>createNode(SyntaxKind.IncompleteDeclaration, fullStart);
+            incomplete.decorators = decorators;
+            setModifiers(incomplete, modifiers);
+            return incomplete;
+        }
+
         function parseClassElement(): ClassElement {
             var fullStart = getNodePos();
+            var decorators = parseDecorators();
             var modifiers = parseModifiers();
 
-            var accessor = tryParseAccessorDeclaration(fullStart, modifiers);
+            var accessor = tryParseAccessorDeclaration(fullStart, decorators, modifiers);
             if (accessor) {
                 return accessor;
             }
 
             if (token === SyntaxKind.ConstructorKeyword) {
-                return parseConstructorDeclaration(fullStart, modifiers);
+                return parseConstructorDeclaration(fullStart, decorators, modifiers);
             }
 
             if (isIndexSignature()) {
-                return parseIndexSignatureDeclaration(modifiers);
+                return parseIndexSignatureDeclaration(fullStart, decorators, modifiers);
             }
 
             // It is very important that we check this *after* checking indexers because
@@ -4467,15 +4820,20 @@ module ts {
                 token === SyntaxKind.AsteriskToken ||
                 token === SyntaxKind.OpenBracketToken) {
 
-                return parsePropertyOrMethodDeclaration(fullStart, modifiers);
+                return parsePropertyOrMethodDeclaration(fullStart, decorators, modifiers);
+            }
+
+            if (decorators) {
+                return reparseClassElement(fullStart, decorators, modifiers);
             }
 
             // 'isClassMemberStart' should have hinted not to attempt parsing.
             Debug.fail("Should not have attempted to parse class member declaration.");
         }
 
-        function parseClassDeclaration(fullStart: number, modifiers: ModifiersArray): ClassDeclaration {
+        function parseClassDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): ClassDeclaration {
             var node = <ClassDeclaration>createNode(SyntaxKind.ClassDeclaration, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             parseExpected(SyntaxKind.ClassKeyword);
             node.name = parseIdentifier();
@@ -4536,8 +4894,9 @@ module ts {
             return parseList(ParsingContext.ClassMembers, /*checkForStrictMode*/ false, parseClassElement);
         }
 
-        function parseInterfaceDeclaration(fullStart: number, modifiers: ModifiersArray): InterfaceDeclaration {
+        function parseInterfaceDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): InterfaceDeclaration {
             var node = <InterfaceDeclaration>createNode(SyntaxKind.InterfaceDeclaration, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             parseExpected(SyntaxKind.InterfaceKeyword);
             node.name = parseIdentifier();
@@ -4547,8 +4906,9 @@ module ts {
             return finishNode(node);
         }
 
-        function parseTypeAliasDeclaration(fullStart: number, modifiers: ModifiersArray): TypeAliasDeclaration {
+        function parseTypeAliasDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): TypeAliasDeclaration {
             var node = <TypeAliasDeclaration>createNode(SyntaxKind.TypeAliasDeclaration, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             parseExpected(SyntaxKind.TypeKeyword);
             node.name = parseIdentifier();
@@ -4569,8 +4929,9 @@ module ts {
             return finishNode(node);
         }
 
-        function parseEnumDeclaration(fullStart: number, modifiers: ModifiersArray): EnumDeclaration {
+        function parseEnumDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): EnumDeclaration {
             var node = <EnumDeclaration>createNode(SyntaxKind.EnumDeclaration, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             parseExpected(SyntaxKind.EnumKeyword);
             node.name = parseIdentifier();
@@ -4596,30 +4957,32 @@ module ts {
             return finishNode(node);
         }
 
-        function parseInternalModuleTail(fullStart: number, modifiers: ModifiersArray, flags: NodeFlags): ModuleDeclaration {
+        function parseInternalModuleTail(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray, flags: NodeFlags): ModuleDeclaration {
             var node = <ModuleDeclaration>createNode(SyntaxKind.ModuleDeclaration, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             node.flags |= flags;
             node.name = parseIdentifier();
             node.body = parseOptional(SyntaxKind.DotToken)
-                ? parseInternalModuleTail(getNodePos(), /*modifiers:*/undefined, NodeFlags.Export)
+                ? parseInternalModuleTail(getNodePos(), /*decorators*/ undefined, /*modifiers:*/undefined, NodeFlags.Export)
                 : parseModuleBlock();
             return finishNode(node);
         }
 
-        function parseAmbientExternalModuleDeclaration(fullStart: number, modifiers: ModifiersArray): ModuleDeclaration {
+        function parseAmbientExternalModuleDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): ModuleDeclaration {
             var node = <ModuleDeclaration>createNode(SyntaxKind.ModuleDeclaration, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             node.name = parseLiteralNode(/*internName:*/ true);
             node.body = parseModuleBlock();
             return finishNode(node);
         }
 
-        function parseModuleDeclaration(fullStart: number, modifiers: ModifiersArray): ModuleDeclaration {
+        function parseModuleDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): ModuleDeclaration {
             parseExpected(SyntaxKind.ModuleKeyword);
             return token === SyntaxKind.StringLiteral
-                ? parseAmbientExternalModuleDeclaration(fullStart, modifiers)
-                : parseInternalModuleTail(fullStart, modifiers, modifiers ? modifiers.flags : 0);
+                ? parseAmbientExternalModuleDeclaration(fullStart, decorators, modifiers)
+                : parseInternalModuleTail(fullStart, decorators, modifiers, modifiers ? modifiers.flags : 0);
         }
 
         function isExternalModuleReference() {
@@ -4637,7 +5000,7 @@ module ts {
                 token === SyntaxKind.FromKeyword;
         }
 
-        function parseImportDeclarationOrImportEqualsDeclaration(fullStart: number, modifiers: ModifiersArray): ImportEqualsDeclaration | ImportDeclaration {
+        function parseImportDeclarationOrImportEqualsDeclaration(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): ImportEqualsDeclaration | ImportDeclaration {
             parseExpected(SyntaxKind.ImportKeyword);
             var afterImportPos = scanner.getStartPos();
 
@@ -4649,6 +5012,7 @@ module ts {
                     // import x = require("mod"); or
                     // import x = M.x;
                     var importEqualsDeclaration = <ImportEqualsDeclaration>createNode(SyntaxKind.ImportEqualsDeclaration, fullStart);
+                    importEqualsDeclaration.decorators = decorators;
                     setModifiers(importEqualsDeclaration, modifiers);
                     importEqualsDeclaration.name = identifier;
                     parseExpected(SyntaxKind.EqualsToken);
@@ -4660,6 +5024,7 @@ module ts {
 
             // Import statement
             var importDeclaration = <ImportDeclaration>createNode(SyntaxKind.ImportDeclaration, fullStart);
+            importDeclaration.decorators = decorators;
             setModifiers(importDeclaration, modifiers);
 
             // ImportDeclaration:
@@ -4811,8 +5176,9 @@ module ts {
             return finishNode(node);
         }
 
-        function parseExportAssignmentTail(fullStart: number, modifiers: ModifiersArray): ExportAssignment {
+        function parseExportAssignmentTail(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): ExportAssignment {
             var node = <ExportAssignment>createNode(SyntaxKind.ExportAssignment, fullStart);
+            node.decorators = decorators;
             setModifiers(node, modifiers);
             node.exportName = parseIdentifier();
             parseSemicolon();
@@ -4855,6 +5221,10 @@ module ts {
                 case SyntaxKind.StaticKeyword:
                     // Check for modifier on source element
                     return lookAhead(nextTokenIsDeclarationStart);
+                case SyntaxKind.AtToken:
+                    // a lookahead here is too costly, and decorators are only valid on a declaration. 
+                    // We will assume we are parsing a declaration here and report an error later
+                    return true;
             }
         }
 
@@ -4895,11 +5265,12 @@ module ts {
 
         function parseDeclaration(): ModuleElement {
             var fullStart = getNodePos();
+            var decorators = parseDecorators();
             var modifiers = parseModifiers();
             if (token === SyntaxKind.ExportKeyword) {
                 nextToken();
                 if (parseOptional(SyntaxKind.EqualsToken)) {
-                    return parseExportAssignmentTail(fullStart, modifiers);
+                    return parseExportAssignmentTail(fullStart, decorators, modifiers);
                 }
                 if (token === SyntaxKind.AsteriskToken || token === SyntaxKind.OpenBraceToken) {
                     return parseExportDeclaration(fullStart, modifiers);
@@ -4910,22 +5281,30 @@ module ts {
                 case SyntaxKind.VarKeyword:
                 case SyntaxKind.LetKeyword:
                 case SyntaxKind.ConstKeyword:
-                    return parseVariableStatement(fullStart, modifiers);
+                    return parseVariableStatement(fullStart, decorators, modifiers);
                 case SyntaxKind.FunctionKeyword:
-                    return parseFunctionDeclaration(fullStart, modifiers);
+                    return parseFunctionDeclaration(fullStart, decorators, modifiers);
                 case SyntaxKind.ClassKeyword:
-                    return parseClassDeclaration(fullStart, modifiers);
+                    return parseClassDeclaration(fullStart, decorators, modifiers);
                 case SyntaxKind.InterfaceKeyword:
-                    return parseInterfaceDeclaration(fullStart, modifiers);
+                    return parseInterfaceDeclaration(fullStart, decorators, modifiers);
                 case SyntaxKind.TypeKeyword:
-                    return parseTypeAliasDeclaration(fullStart, modifiers);
+                    return parseTypeAliasDeclaration(fullStart, decorators, modifiers);
                 case SyntaxKind.EnumKeyword:
-                    return parseEnumDeclaration(fullStart, modifiers);
+                    return parseEnumDeclaration(fullStart, decorators, modifiers);
                 case SyntaxKind.ModuleKeyword:
-                    return parseModuleDeclaration(fullStart, modifiers);
+                    return parseModuleDeclaration(fullStart, decorators, modifiers);
                 case SyntaxKind.ImportKeyword:
-                    return parseImportDeclarationOrImportEqualsDeclaration(fullStart, modifiers);
+                    return parseImportDeclarationOrImportEqualsDeclaration(fullStart, decorators, modifiers);
                 default:
+                    if (decorators) {
+                        // We reached this point because we encountered an AtToken and assumed a declaration would
+                        // follow. For recovery and error reporting purposes, return an incomplete declaration.
+                        var node = <ModuleElement>createNode(SyntaxKind.IncompleteDeclaration, fullStart);
+                        node.decorators = decorators;
+                        setModifiers(node, modifiers);
+                        return finishNode(node);
+                    }
                     Debug.fail("Mismatch between isDeclarationStart and parseDeclaration");
             }
         }

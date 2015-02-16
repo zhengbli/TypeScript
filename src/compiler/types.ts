@@ -67,6 +67,7 @@ module ts {
         BarBarToken,
         QuestionToken,
         ColonToken,
+        AtToken,
         // Assignments
         EqualsToken,
         PlusEqualsToken,
@@ -152,6 +153,7 @@ module ts {
         // Signature elements
         TypeParameter,
         Parameter,
+        Decorator,
         // TypeMember
         PropertySignature,
         PropertyDeclaration,
@@ -241,6 +243,7 @@ module ts {
         ExportDeclaration,
         NamedExports,
         ExportSpecifier,
+        IncompleteDeclaration,
 
         // Module references
         ExternalModuleReference,
@@ -323,22 +326,25 @@ module ts {
         // If this node was parsed in the parameters of a generator.
         GeneratorParameter = 1 << 3,
 
+        // If this node was parsed as part of a decorator
+        Decorator = 1 << 4,
+
         // If the parser encountered an error when parsing the code that created this node.  Note
         // the parser only sets this directly on the node it creates right after encountering the
         // error.  
-        ThisNodeHasError = 1 << 4,
+        ThisNodeHasError = 1 << 5,
 
         // Context flags set directly by the parser.
-        ParserGeneratedFlags = StrictMode | DisallowIn | Yield | GeneratorParameter | ThisNodeHasError,
+        ParserGeneratedFlags = StrictMode | DisallowIn | Yield | GeneratorParameter | Decorator | ThisNodeHasError,
 
         // Context flags computed by aggregating child flags upwards.
 
         // Used during incremental parsing to determine if this node or any of its children had an 
         // error.  Computed only once and then cached.
-        ThisNodeOrAnySubNodesHasError = 1 << 5,
+        ThisNodeOrAnySubNodesHasError = 1 << 6,
 
         // Used to know if we've computed data from children and cached it in this node.
-        HasAggregatedChildData = 1 << 6
+        HasAggregatedChildData = 1 << 7
     }
 
     export const enum RelationComparisonResult {
@@ -360,6 +366,7 @@ module ts {
         locals?: SymbolTable;         // Locals associated with node (initialized by binding)
         nextContainer?: Node;         // Next container in declaration order (initialized by binding)
         localSymbol?: Symbol;         // Local symbol declared by node (initialized by binding only for exported nodes)
+        decorators?: NodeArray<Decorator>;  // Array of decorators
     }
 
     export interface NodeArray<T> extends Array<T>, TextRange {
@@ -391,6 +398,10 @@ module ts {
 
     export interface ComputedPropertyName extends Node {
         expression: Expression;
+    }
+
+    export interface Decorator extends Node {
+        expression: LeftHandSideExpression;
     }
 
     export interface TypeParameterDeclaration extends Declaration {
@@ -1327,6 +1338,7 @@ module ts {
 
         // Values for enum members have been computed, and any errors have been reported for them.
         EnumValuesComputed  = 0x00000080,
+        EmitDecorate        = 0x00000100,
     }
 
     export interface NodeLinks {

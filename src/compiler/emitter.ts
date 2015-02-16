@@ -47,6 +47,12 @@ module ts {
         referencePathsOutput: string;
     }
 
+    interface DecoratorEmitInfo {
+        workingVariable?: Identifier; // temporary variable used as working memory for decorator application
+        computedPropertyNameCache: Identifier[]; // a cache of temporary variables used to hold onto the result of the expression for a computed property
+        propertyDescriptorCache: Identifier[]; // a cache of property descriptors created when emitting accessor declarations
+    }
+
     var indentStrings: string[] = ["", "    "];
     export function getIndentString(level: number) {
         if (indentStrings[level] === undefined) {
@@ -173,7 +179,7 @@ module ts {
         });
     }
 
-    function writeCommentRange(currentSourceFile: SourceFile, writer: EmitTextWriter, comment: CommentRange, newLine: string){
+    function writeCommentRange(currentSourceFile: SourceFile, writer: EmitTextWriter, comment: CommentRange, newLine: string) {
         if (currentSourceFile.text.charCodeAt(comment.pos + 1) === CharacterCodes.asterisk) {
             var firstCommentLineAndCharacter = getLineAndCharacterOfPosition(currentSourceFile, comment.pos);
             var lastLine = getLineStarts(currentSourceFile).length;
@@ -279,10 +285,12 @@ module ts {
 
     function getAllAccessorDeclarations(node: ClassDeclaration, accessor: AccessorDeclaration) {
         var firstAccessor: AccessorDeclaration;
+        var lastAccessor: AccessorDeclaration;
         var getAccessor: AccessorDeclaration;
         var setAccessor: AccessorDeclaration;
         if (accessor.name.kind === SyntaxKind.ComputedPropertyName) {
             firstAccessor = accessor;
+            lastAccessor = accessor;
             if (accessor.kind === SyntaxKind.GetAccessor) {
                 getAccessor = accessor;
             }
@@ -294,13 +302,15 @@ module ts {
             }
         }
         else {
-            forEach(node.members,(member: Declaration) => {
+            forEach(node.members, (member: Declaration) => {
                 if ((member.kind === SyntaxKind.GetAccessor || member.kind === SyntaxKind.SetAccessor) &&
                     (<Identifier>member.name).text === (<Identifier>accessor.name).text &&
                     (member.flags & NodeFlags.Static) === (accessor.flags & NodeFlags.Static)) {
                     if (!firstAccessor) {
                         firstAccessor = <AccessorDeclaration>member;
                     }
+
+                    lastAccessor = <AccessorDeclaration>member;
 
                     if (member.kind === SyntaxKind.GetAccessor && !getAccessor) {
                         getAccessor = <AccessorDeclaration>member;
@@ -314,6 +324,7 @@ module ts {
         }
         return {
             firstAccessor,
+            lastAccessor,
             getAccessor,
             setAccessor
         };
@@ -325,7 +336,7 @@ module ts {
         return combinePaths(newDirPath, sourceFilePath);
     }
 
-    function getOwnEmitOutputFilePath(sourceFile: SourceFile, host: EmitHost, extension: string){
+    function getOwnEmitOutputFilePath(sourceFile: SourceFile, host: EmitHost, extension: string) {
         var compilerOptions = host.getCompilerOptions();
         if (compilerOptions.outDir) {
             var emitOutputFilePathWithoutExtension = removeFileExtension(getSourceFilePathInNewDir(sourceFile, host, compilerOptions.outDir));
@@ -1122,7 +1133,7 @@ module ts {
             if (hasDynamicName(node)) {
                 return;
             }
-            
+
             var accessors = getAllAccessorDeclarations(<ClassDeclaration>node.parent, node);
             if (node === accessors.firstAccessor) {
                 emitJsDocComments(accessors.getAccessor);
@@ -1504,7 +1515,7 @@ module ts {
             referencePathsOutput += "/// <reference path=\"" + declFileName + "\" />" + newLine;
         }
     }
-    
+
     export function getDeclarationDiagnostics(host: EmitHost, resolver: EmitResolver, targetSourceFile: SourceFile): Diagnostic[] {
         var diagnostics: Diagnostic[] = [];
         var jsFilePath = getOwnEmitOutputFilePath(targetSourceFile, host, ".js");
@@ -1564,6 +1575,7 @@ module ts {
             var currentSourceFile: SourceFile;
 
             var extendsEmitted = false;
+            var decorateEmitted = false;
             var tempCount = 0;
             var tempVariables: Identifier[];
             var tempParameters: Identifier[];
@@ -2282,11 +2294,22 @@ module ts {
 
             // This function specifically handles numeric/string literals for enum and accessor 'identifiers'.
             // In a sense, it does not actually emit identifiers as much as it declares a name for a specific property.
-            function emitExpressionForPropertyName(node: DeclarationName) {
+            function emitExpressionForPropertyName(node: DeclarationName, tempNames?: Identifier[]) {
                 if (node.kind === SyntaxKind.StringLiteral) {
                     emitLiteral(<LiteralExpression>node);
                 }
                 else if (node.kind === SyntaxKind.ComputedPropertyName) {
+                    if (tempNames) {
+                        if (tempNames[node.id]) {
+                            return emit(tempNames[node.id]);
+                        }
+
+                        var tempName = createTempVariable(node);
+                        recordTempDeclaration(tempName);
+                        tempNames[node.id] = tempName;
+                        write(tempName.text);
+                        write(" = ");
+                    }
                     emit((<ComputedPropertyName>node).expression);
                 }
                 else {
@@ -2501,9 +2524,23 @@ module ts {
                 write("}");
             }
 
-            function emitComputedPropertyName(node: ComputedPropertyName) {
+            function emitComputedPropertyName(node: ComputedPropertyName, tempNames?: Identifier[]) {
                 write("[");
-                emit(node.expression);
+                if (tempNames) {
+                    if (tempNames[node.id]) {
+                        emitNode(tempNames[node.id]);
+                    } else {
+                        var tempName = createTempVariable(node);
+                        recordTempDeclaration(tempName);
+                        tempNames[node.id] = tempName;
+                        write(tempName.text);
+                        write(" = ");
+                        emit(node.expression);
+                    }
+                }
+                else {
+                    emit(node.expression);
+                }
                 write("]");
             }
 
@@ -3651,14 +3688,14 @@ module ts {
                 });
             }
 
-            function emitMemberAccessForPropertyName(memberName: DeclarationName) {
+            function emitMemberAccessForPropertyName(memberName: DeclarationName, tempNames?: Identifier[]) {
                 if (memberName.kind === SyntaxKind.StringLiteral || memberName.kind === SyntaxKind.NumericLiteral) {
                     write("[");
                     emitNode(memberName);
                     write("]");
                 }
                 else if (memberName.kind === SyntaxKind.ComputedPropertyName) {
-                    emitComputedPropertyName(<ComputedPropertyName>memberName);
+                    emitComputedPropertyName(<ComputedPropertyName>memberName, tempNames);
                 }
                 else {
                     write(".");
@@ -3690,7 +3727,9 @@ module ts {
                 });
             }
 
-            function emitMemberFunctions(node: ClassDeclaration) {
+            function emitMemberFunctions(node: ClassDeclaration): DecoratorEmitInfo {
+                var computedPropertyNameCache: Identifier[];
+                var propertyDescriptorCache: Identifier[];
                 forEach(node.members, member => {
                     if (member.kind === SyntaxKind.MethodDeclaration || node.kind === SyntaxKind.MethodSignature) {
                         if (!(<MethodDeclaration>member).body) {
@@ -3701,11 +3740,11 @@ module ts {
                         emitLeadingComments(member);
                         emitStart(member);
                         emitStart((<MethodDeclaration>member).name);
-                        emitNode(node.name);
-                        if (!(member.flags & NodeFlags.Static)) {
-                            write(".prototype");
+                        emitTargetOfClassElement(node, member);
+                        if (member.decorators && !computedPropertyNameCache && (<MethodDeclaration>member).name.kind === SyntaxKind.ComputedPropertyName) {
+                            computedPropertyNameCache = [];
                         }
-                        emitMemberAccessForPropertyName((<MethodDeclaration>member).name);
+                        emitMemberAccessForPropertyName((<MethodDeclaration>member).name, member.decorators ? computedPropertyNameCache : undefined);
                         emitEnd((<MethodDeclaration>member).name);
                         write(" = ");
                         emitStart(member);
@@ -3718,18 +3757,34 @@ module ts {
                     else if (member.kind === SyntaxKind.GetAccessor || member.kind === SyntaxKind.SetAccessor) {
                         var accessors = getAllAccessorDeclarations(node, <AccessorDeclaration>member);
                         if (member === accessors.firstAccessor) {
+                            var tempDescriptor: Identifier;
+                            if (member.decorators) {
+                                if (!propertyDescriptorCache) {
+                                    propertyDescriptorCache = [];
+                                }
+                                tempDescriptor = createTempVariable(node);
+                                recordTempDeclaration(tempDescriptor);
+                                propertyDescriptorCache[accessors.firstAccessor.id] = tempDescriptor;
+                                propertyDescriptorCache[accessors.lastAccessor.id] = tempDescriptor;
+                            }
                             writeLine();
                             emitStart(member);
                             write("Object.defineProperty(");
                             emitStart((<AccessorDeclaration>member).name);
-                            emitNode(node.name);
-                            if (!(member.flags & NodeFlags.Static)) {
-                                write(".prototype");
-                            }
+                            emitTargetOfClassElement(node, member);
                             write(", ");
-                            emitExpressionForPropertyName((<AccessorDeclaration>member).name);
+
+                            if ((member.decorators || accessors.lastAccessor.decorators) && !computedPropertyNameCache && (<AccessorDeclaration>member).name.kind === SyntaxKind.ComputedPropertyName) {
+                                computedPropertyNameCache = [];
+                            }
+                            emitExpressionForPropertyName((<AccessorDeclaration>member).name, member.decorators ? computedPropertyNameCache : undefined);
                             emitEnd((<AccessorDeclaration>member).name);
-                            write(", {");
+                            write(", ");
+                            if (tempDescriptor) {
+                                write(tempDescriptor.text);
+                                write(" = ");
+                            }
+                            write("{");
                             increaseIndent();
                             if (accessors.getAccessor) {
                                 writeLine();
@@ -3764,6 +3819,7 @@ module ts {
                         }
                     }
                 });
+                return { computedPropertyNameCache, propertyDescriptorCache };
             }
 
             function emitClassDeclaration(node: ClassDeclaration) {
@@ -3775,6 +3831,12 @@ module ts {
                     write("_super");
                 }
                 write(") {");
+                var saveTempCount = tempCount;
+                var saveTempVariables = tempVariables;
+                var saveTempParameters = tempParameters;
+                tempCount = 0;
+                tempVariables = undefined;
+                tempParameters = undefined;
                 increaseIndent();
                 scopeEmitStart(node);
                 if (baseTypeNode) {
@@ -3787,9 +3849,15 @@ module ts {
                 }
                 writeLine();
                 emitConstructorOfClass();
-                emitMemberFunctions(node);
+                var decoratorEmitInfo = emitMemberFunctions(node);
                 emitMemberAssignments(node, NodeFlags.Static);
                 writeLine();
+                emitDecoratorsOfClass(node, decoratorEmitInfo);
+                emitTempDeclarations(/*newLine*/ true);
+                writeLine();
+                tempCount = saveTempCount;
+                tempVariables = saveTempVariables;
+                tempParameters = saveTempParameters;
                 function emitClassReturnStatement() {
                     write("return ");
                     emitNode(node.name);
@@ -3891,6 +3959,197 @@ module ts {
                     tempVariables = saveTempVariables;
                     tempParameters = saveTempParameters;
                 }
+            }
+
+            function emitTargetOfClassElement(node: ClassDeclaration, member: Node) {
+                emitNode(node.name);
+                if (!(member.flags & NodeFlags.Static)) {
+                    write(".prototype");
+                }
+            }
+
+            function getDecoratorsOfMember(node: ClassDeclaration, member: ClassElement) {
+                switch (member.kind) {
+                    case SyntaxKind.MethodDeclaration:
+                    case SyntaxKind.PropertyDeclaration:
+                        return member.decorators;
+                    case SyntaxKind.GetAccessor:
+                    case SyntaxKind.SetAccessor:
+                        var accessors = getAllAccessorDeclarations(node, <AccessorDeclaration>member);
+                        if (member === accessors.firstAccessor) {
+                            var decorators = accessors.firstAccessor.decorators;
+                            if (member !== accessors.lastAccessor && accessors.lastAccessor.decorators) {
+                                if (decorators) {
+                                    return decorators.concat(accessors.lastAccessor.decorators);
+                                }
+                                return accessors.lastAccessor.decorators;
+                            }
+                            return decorators;
+                        }
+                        break;
+                }
+                return undefined;
+            }
+
+            function emitDecoratorsOfParameter(node: FunctionLikeDeclaration, parameter: ParameterDeclaration, parameterIndex: number, info: DecoratorEmitInfo) {
+                var decorators = parameter.decorators;
+                if (!decorators) {
+                    return;
+                }
+
+                emitStart(node);
+                var decoratorCount = decorators.length;
+                for (var i = 0; i < decoratorCount; i++) {
+                    var decorator = decorators[i];
+                    emitStart(decorator);
+                    emit(decorator.expression);
+                    write("(");
+                    if (i < decoratorCount - 1) {
+                        write("(");
+                    }
+                    emitEnd(decorator);
+                }
+
+                emitPropertyAccessForMethod(node, info);
+
+                for (var i = decoratorCount - 1; i >= 0; i--) {
+                    var decorator = decorators[i];
+                    emitStart(decorator);
+                    if (i < decoratorCount - 1) {
+                        write(", ");
+                        emitPropertyAccessForMethod(node, info);
+                        write(")");
+                    }
+                    write(", ");
+                    write(String(parameterIndex));
+                    write(")");
+                    emitEnd(decorator);
+                }
+                write(";");
+                emitEnd(node);
+                writeLine();
+            }
+
+            function emitPropertyAccessForMethod(node: FunctionLikeDeclaration, info: DecoratorEmitInfo) {
+                if (node.parent && node.parent.kind === SyntaxKind.ClassDeclaration) {
+                    if (node.kind === SyntaxKind.Constructor) {
+                        emitNode((<ClassDeclaration>node.parent).name);
+                    }
+                    else if (node.kind === SyntaxKind.SetAccessor) {
+                        emitNode(info.propertyDescriptorCache[node.id]);
+                        write(".set");
+                    }
+                    else {
+                        emitTargetOfClassElement(<ClassDeclaration>node.parent, node);
+                        emitMemberAccessForPropertyName(node.name, info.computedPropertyNameCache);
+                    }
+                }
+            }
+
+            function emitDecoratorsOfParameters(node: FunctionLikeDeclaration, info: DecoratorEmitInfo) {
+                forEach(node.parameters, (parameter, parameterIndex) => emitDecoratorsOfParameter(node, parameter, parameterIndex, info));
+            }
+
+            function emitDecoratorsOfMembers(node: ClassDeclaration, info: DecoratorEmitInfo) {
+                forEach(node.members, member => emitDecoratorsOfMember(node, member, info));
+            }
+
+            function emitDecoratorsOfMember(node: ClassDeclaration, member: ClassElement, info: DecoratorEmitInfo) {
+                var name = member.name;
+                var decorators = getDecoratorsOfMember(node, member);
+                if (!decorators) {
+                    return;
+                }
+
+                if (name.kind === SyntaxKind.ComputedPropertyName && !info.computedPropertyNameCache) {
+                    info.computedPropertyNameCache = [];
+                }
+
+                switch (member.kind) {
+                    case SyntaxKind.MethodDeclaration:
+                        emitDecoratorsOfParameters(<MethodDeclaration>member, info);
+                        break;
+                    case SyntaxKind.GetAccessor:
+                    case SyntaxKind.SetAccessor:
+                        var accessors = getAllAccessorDeclarations(node, <AccessorDeclaration>member);
+                        if (accessors.setAccessor) {
+                            emitDecoratorsOfParameters(accessors.setAccessor, info);
+                        }
+                        break;
+                }
+
+                if (languageVersion >= ScriptTarget.ES5) {
+                    emitStart(member);
+                    write("__decorate(");
+                    emitTargetOfClassElement(node, member);
+                    write(", ");
+                    emitExpressionForPropertyName(name, info.computedPropertyNameCache);
+                    write(", [");
+                    var decoratorCount = decorators.length;
+                    for (var i = 0; i < decoratorCount; i++) {
+                        if (i > 0) {
+                            write(", ");
+                        }
+                        var decorator = decorators[i];
+                        emitStart(decorator);
+                        emit(decorator.expression);
+                        emitEnd(decorator);
+                    }
+                    write("]");
+                    if (info.propertyDescriptorCache && info.propertyDescriptorCache[member.id]) {
+                        write(", ");
+                        emitNode(info.propertyDescriptorCache[member.id]);
+                    }
+                    write(");");
+                    emitEnd(member);
+                    writeLine();
+                }                
+            }
+
+            function emitDecoratorsOfConstructor(node: ClassDeclaration, info: DecoratorEmitInfo) {
+                var decorators = node.decorators;
+                if (!node.decorators) {
+                    return;
+                }
+                
+                var constructor = getFirstConstructorWithBody(node);
+                if (constructor) {
+                    emitDecoratorsOfParameters(constructor, info);
+                }
+
+                emitStart(node);
+                for (var i = 0; i < decorators.length; i++) {
+                    var decorator = decorators[i];
+                    emitStart(decorator);
+                    emitNode(node.name);
+                    write(" = ");
+                    emit(decorators[i].expression);
+                    write("(");
+                    emitEnd(decorator);
+                    if (i < decorators.length - 1) {
+                        increaseIndent();
+                        writeLine();
+                    }
+                }
+                emitNode(node.name);
+                for (var i = decorators.length - 1; i >= 0; i--) {
+                    var decorator = decorators[i];
+                    emitStart(decorator);
+                    write(") || ");
+                    emitNode(node.name);
+                    emitEnd(decorator);
+                    if (i < decorators.length - 1) {
+                        decreaseIndent();
+                    }
+                }
+                write(";");
+                emitEnd(node);
+                writeLine();
+            }
+
+            function emitDecoratorsOfClass(node: ClassDeclaration, info: DecoratorEmitInfo) {
+                emitDecoratorsOfMembers(node, info);
+                emitDecoratorsOfConstructor(node, info);
             }
 
             function emitInterfaceDeclaration(node: InterfaceDeclaration) {
@@ -4383,6 +4642,21 @@ module ts {
                     write("};");
                     extendsEmitted = true;
                 }
+                if (!decorateEmitted && resolver.getNodeCheckFlags(node) & NodeCheckFlags.EmitDecorate && languageVersion >= ScriptTarget.ES5) {
+                    writeLine();
+                    write("var __decorate = this.__decorate || function (t, p, a, d) {");
+                    increaseIndent();
+                    writeLine();
+                    write("d = d || Object.getOwnPropertyDescriptor(t, p);");
+                    writeLine();
+                    write("for (var i = a.length - 1; i >= 0; i--) d = (void 0, a[i])(t, p, d) || d;");
+                    writeLine();
+                    write("d && Object.defineProperty(t, p, d);");
+                    decreaseIndent();
+                    writeLine();
+                    write("};");
+                    decorateEmitted = true;
+                }
                 if (isExternalModule(node)) {
                     createExternalModuleInfo(node);
                     if (compilerOptions.module === ModuleKind.AMD) {
@@ -4403,7 +4677,7 @@ module ts {
                 emitLeadingComments(node.endOfFileToken);
             }
 
-            function emitNode(node: Node, disableComments?:boolean): void {
+            function emitNode(node: Node, disableComments?: boolean): void {
                 if (!node) {
                     return;
                 }
@@ -4670,7 +4944,7 @@ module ts {
                 }
                 emitNewLineBeforeLeadingComments(currentSourceFile, writer, { pos: pos, end: pos }, leadingComments);
                 // Leading comments are emitted at /*leading comment1 */space/*leading comment*/space
-                emitComments(currentSourceFile, writer, leadingComments, /*trailingSeparator*/ true, newLine, writeComment);                
+                emitComments(currentSourceFile, writer, leadingComments, /*trailingSeparator*/ true, newLine, writeComment);
             }
 
             function emitDetachedCommentsAtPosition(node: TextRange) {
@@ -4760,7 +5034,7 @@ module ts {
                 writeFile(host, diagnostics, removeFileExtension(jsFilePath) + ".d.ts", declarationOutput, compilerOptions.emitBOM);
             }
         }
-       
+
         function emitFile(jsFilePath: string, sourceFile?: SourceFile) {
             emitJavaScript(jsFilePath, sourceFile);
 

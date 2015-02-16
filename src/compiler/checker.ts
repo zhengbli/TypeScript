@@ -94,12 +94,25 @@ module ts {
         var globalRegExpType: ObjectType;
         var globalTemplateStringsArrayType: ObjectType;
 
+        var globalTypedPropertyDescriptorType: ObjectType;
+        var globalDecoratorTargetsType: ObjectType;
+        var globalDecoratorFunctionType: ObjectType;
+        var globalArgumentDecoratorFunctionType: ObjectType;
+        var globalMemberDecoratorFunctionType: ObjectType;
+        var globalDecoratorDecorator: ObjectType;
+        var globalTypeDecorator: ObjectType;
+        var globalParamTypesDecorator: ObjectType;
+        var globalReturnTypeDecorator: ObjectType;
+        var globalConditionalDecorator: ObjectType;
+        var globalObsoleteDecorator: ObjectType;
+
         var anyArrayType: Type;
 
         var tupleTypes: Map<TupleType> = {};
         var unionTypes: Map<UnionType> = {};
         var stringLiteralTypes: Map<StringLiteralType> = {};
         var emitExtends = false;
+        var emitDecorate = false;
 
         var mergedSymbols: Symbol[] = [];
         var symbolLinks: SymbolLinks[] = [];
@@ -413,6 +426,26 @@ module ts {
                         if (name === id.text) {
                             result = location.symbol;
                             break loop;
+                        }
+                        break;
+                    case SyntaxKind.Decorator:
+                        if (location.parent) {
+                            lastLocation = location;
+                            var grandparent = location.parent.parent;
+                            if (location.parent.kind === SyntaxKind.Parameter) {
+                                // Parameter decorators are resolved in the context of their great-grandparent
+                                if (grandparent) {
+                                    location = grandparent.parent;
+                                }
+                                else {
+                                    break loop;
+                                }
+                            }
+                            else {
+                                // all other decorators are resolved in the context of their grandparent
+                                location = grandparent;
+                            }
+                            continue;
                         }
                         break;
                 }
@@ -7546,6 +7579,7 @@ module ts {
                 checkGrammarFunctionLikeDeclaration(<FunctionLikeDeclaration>node);
             }
 
+            checkDecorators(node);
             checkTypeParameters(node.typeParameters);
 
             forEach(node.parameters, checkParameter);
@@ -8147,6 +8181,32 @@ module ts {
                         return SymbolFlags.ExportValue;
                 }
             }
+        }
+
+        function checkDecorators(node: Node): void {
+            if (!node.decorators) {
+                return;
+            }
+
+            checkGrammarDecorators(node);
+
+            switch (node.kind) {
+                case SyntaxKind.MethodDeclaration:
+                case SyntaxKind.PropertyDeclaration:
+                case SyntaxKind.GetAccessor:
+                case SyntaxKind.SetAccessor:
+                    if (languageVersion >= ScriptTarget.ES5 && node.parent.kind === SyntaxKind.ClassDeclaration) {
+                        emitDecorate = true;
+                    }
+                    break;
+            }
+
+            forEach(node.decorators, checkDecorator);
+        }
+
+        function checkDecorator(node: Decorator): void {
+            var type = checkExpression(node.expression);
+            // TODO: check the type of the expression
         }
 
         function checkFunctionDeclaration(node: FunctionDeclaration): void {
@@ -8904,7 +8964,7 @@ module ts {
         function checkClassDeclaration(node: ClassDeclaration) {
             // Grammar checking
             checkGrammarClassDeclarationHeritageClauses(node);
-
+            checkDecorators(node);
             checkTypeNameIsReserved(node.name, Diagnostics.Class_name_cannot_be_0);
             checkTypeParameters(node.typeParameters);
             checkCollisionWithCapturedThisVariable(node, node.name);
@@ -9796,6 +9856,10 @@ module ts {
 
                 if (emitExtends) {
                     links.flags |= NodeCheckFlags.EmitExtends;
+                }
+
+                if (emitDecorate) {
+                    links.flags |= NodeCheckFlags.EmitDecorate;
                 }
 
                 links.flags |= NodeCheckFlags.TypeChecked;
@@ -10853,6 +10917,54 @@ module ts {
         function checkGrammarArguments(node: CallExpression, arguments: NodeArray<Expression>): boolean {
             return checkGrammarForDisallowedTrailingComma(arguments) ||
                 checkGrammarForOmittedArgument(node, arguments);
+        }
+
+        function checkGrammarDecorators(node: Node): boolean {
+            switch (node.kind) {
+                case SyntaxKind.FunctionDeclaration:
+                case SyntaxKind.FunctionExpression:
+                case SyntaxKind.ArrowFunction:
+                case SyntaxKind.InterfaceDeclaration:
+                    // these are only supported for ambient decorators, which are checked in the typecheck pass
+                    return;
+
+                case SyntaxKind.ClassDeclaration:
+                    // decorators are always allowed on a class
+                    return;
+
+                case SyntaxKind.MethodDeclaration:
+                case SyntaxKind.PropertyDeclaration:
+                case SyntaxKind.GetAccessor:
+                case SyntaxKind.SetAccessor:
+                    // we allow decorators on these kinds of members, but disallow non-ambient decorators on class members in ES3 or non-class members in the typecheck pass
+                    return;
+                    //if (node.parent.kind === SyntaxKind.ClassDeclaration) {
+                    //    if (languageVersion < ScriptTarget.ES5) {
+                    //        return grammarErrorOnNode(node, Diagnostics.Decorators_are_only_supported_on_class_members_when_targeting_ECMAScript_5_or_higher);
+                    //    }
+                    //    return;
+                    //}
+                    //break;
+
+                case SyntaxKind.Parameter:
+                    // we allow decorators on parameters, but disallow non-ambient decorators using the above rules in the typecheck pass
+                    return;
+
+                    //switch (node.kind) {
+                    //    case SyntaxKind.MethodDeclaration:
+                    //    case SyntaxKind.PropertyDeclaration:
+                    //    case SyntaxKind.GetAccessor:
+                    //    case SyntaxKind.SetAccessor:
+                    //    case SyntaxKind.Constructor:
+                    //        if (node.parent.kind === SyntaxKind.ClassDeclaration) {
+                    //            return;
+                    //        }
+                    //        break;
+                    //}
+                    //break;
+            }
+
+            return grammarErrorOnNode(node, Diagnostics.Decorators_cannot_appear_here);
         }
 
         function checkGrammarHeritageClause(node: HeritageClause): boolean {
