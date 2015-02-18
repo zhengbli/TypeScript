@@ -562,310 +562,313 @@ declare module "typescript" {
         StringKeyword = 122,
 >StringKeyword : SyntaxKind
 
-        TypeKeyword = 123,
+        SymbolKeyword = 123,
+>SymbolKeyword : SyntaxKind
+
+        TypeKeyword = 124,
 >TypeKeyword : SyntaxKind
 
-        OfKeyword = 124,
+        OfKeyword = 125,
 >OfKeyword : SyntaxKind
 
-        QualifiedName = 125,
+        QualifiedName = 126,
 >QualifiedName : SyntaxKind
 
-        ComputedPropertyName = 126,
+        ComputedPropertyName = 127,
 >ComputedPropertyName : SyntaxKind
 
-        TypeParameter = 127,
+        TypeParameter = 128,
 >TypeParameter : SyntaxKind
 
-        Parameter = 128,
+        Parameter = 129,
 >Parameter : SyntaxKind
 
-        Decorator = 129,
+        Decorator = 130,
 >Decorator : SyntaxKind
 
-        PropertySignature = 130,
+        PropertySignature = 131,
 >PropertySignature : SyntaxKind
 
-        PropertyDeclaration = 131,
+        PropertyDeclaration = 132,
 >PropertyDeclaration : SyntaxKind
 
-        MethodSignature = 132,
+        MethodSignature = 133,
 >MethodSignature : SyntaxKind
 
-        MethodDeclaration = 133,
+        MethodDeclaration = 134,
 >MethodDeclaration : SyntaxKind
 
-        Constructor = 134,
+        Constructor = 135,
 >Constructor : SyntaxKind
 
-        GetAccessor = 135,
+        GetAccessor = 136,
 >GetAccessor : SyntaxKind
 
-        SetAccessor = 136,
+        SetAccessor = 137,
 >SetAccessor : SyntaxKind
 
-        CallSignature = 137,
+        CallSignature = 138,
 >CallSignature : SyntaxKind
 
-        ConstructSignature = 138,
+        ConstructSignature = 139,
 >ConstructSignature : SyntaxKind
 
-        IndexSignature = 139,
+        IndexSignature = 140,
 >IndexSignature : SyntaxKind
 
-        TypeReference = 140,
+        TypeReference = 141,
 >TypeReference : SyntaxKind
 
-        FunctionType = 141,
+        FunctionType = 142,
 >FunctionType : SyntaxKind
 
-        ConstructorType = 142,
+        ConstructorType = 143,
 >ConstructorType : SyntaxKind
 
-        TypeQuery = 143,
+        TypeQuery = 144,
 >TypeQuery : SyntaxKind
 
-        TypeLiteral = 144,
+        TypeLiteral = 145,
 >TypeLiteral : SyntaxKind
 
-        ArrayType = 145,
+        ArrayType = 146,
 >ArrayType : SyntaxKind
 
-        TupleType = 146,
+        TupleType = 147,
 >TupleType : SyntaxKind
 
-        UnionType = 147,
+        UnionType = 148,
 >UnionType : SyntaxKind
 
-        ParenthesizedType = 148,
+        ParenthesizedType = 149,
 >ParenthesizedType : SyntaxKind
 
-        ObjectBindingPattern = 149,
+        ObjectBindingPattern = 150,
 >ObjectBindingPattern : SyntaxKind
 
-        ArrayBindingPattern = 150,
+        ArrayBindingPattern = 151,
 >ArrayBindingPattern : SyntaxKind
 
-        BindingElement = 151,
+        BindingElement = 152,
 >BindingElement : SyntaxKind
 
-        ArrayLiteralExpression = 152,
+        ArrayLiteralExpression = 153,
 >ArrayLiteralExpression : SyntaxKind
 
-        ObjectLiteralExpression = 153,
+        ObjectLiteralExpression = 154,
 >ObjectLiteralExpression : SyntaxKind
 
-        PropertyAccessExpression = 154,
+        PropertyAccessExpression = 155,
 >PropertyAccessExpression : SyntaxKind
 
-        ElementAccessExpression = 155,
+        ElementAccessExpression = 156,
 >ElementAccessExpression : SyntaxKind
 
-        CallExpression = 156,
+        CallExpression = 157,
 >CallExpression : SyntaxKind
 
-        NewExpression = 157,
+        NewExpression = 158,
 >NewExpression : SyntaxKind
 
-        TaggedTemplateExpression = 158,
+        TaggedTemplateExpression = 159,
 >TaggedTemplateExpression : SyntaxKind
 
-        TypeAssertionExpression = 159,
+        TypeAssertionExpression = 160,
 >TypeAssertionExpression : SyntaxKind
 
-        ParenthesizedExpression = 160,
+        ParenthesizedExpression = 161,
 >ParenthesizedExpression : SyntaxKind
 
-        FunctionExpression = 161,
+        FunctionExpression = 162,
 >FunctionExpression : SyntaxKind
 
-        ArrowFunction = 162,
+        ArrowFunction = 163,
 >ArrowFunction : SyntaxKind
 
-        DeleteExpression = 163,
+        DeleteExpression = 164,
 >DeleteExpression : SyntaxKind
 
-        TypeOfExpression = 164,
+        TypeOfExpression = 165,
 >TypeOfExpression : SyntaxKind
 
-        VoidExpression = 165,
+        VoidExpression = 166,
 >VoidExpression : SyntaxKind
 
-        PrefixUnaryExpression = 166,
+        PrefixUnaryExpression = 167,
 >PrefixUnaryExpression : SyntaxKind
 
-        PostfixUnaryExpression = 167,
+        PostfixUnaryExpression = 168,
 >PostfixUnaryExpression : SyntaxKind
 
-        BinaryExpression = 168,
+        BinaryExpression = 169,
 >BinaryExpression : SyntaxKind
 
-        ConditionalExpression = 169,
+        ConditionalExpression = 170,
 >ConditionalExpression : SyntaxKind
 
-        TemplateExpression = 170,
+        TemplateExpression = 171,
 >TemplateExpression : SyntaxKind
 
-        YieldExpression = 171,
+        YieldExpression = 172,
 >YieldExpression : SyntaxKind
 
-        SpreadElementExpression = 172,
+        SpreadElementExpression = 173,
 >SpreadElementExpression : SyntaxKind
 
-        OmittedExpression = 173,
+        OmittedExpression = 174,
 >OmittedExpression : SyntaxKind
 
-        TemplateSpan = 174,
+        TemplateSpan = 175,
 >TemplateSpan : SyntaxKind
 
-        Block = 175,
+        Block = 176,
 >Block : SyntaxKind
 
-        VariableStatement = 176,
+        VariableStatement = 177,
 >VariableStatement : SyntaxKind
 
-        EmptyStatement = 177,
+        EmptyStatement = 178,
 >EmptyStatement : SyntaxKind
 
-        ExpressionStatement = 178,
+        ExpressionStatement = 179,
 >ExpressionStatement : SyntaxKind
 
-        IfStatement = 179,
+        IfStatement = 180,
 >IfStatement : SyntaxKind
 
-        DoStatement = 180,
+        DoStatement = 181,
 >DoStatement : SyntaxKind
 
-        WhileStatement = 181,
+        WhileStatement = 182,
 >WhileStatement : SyntaxKind
 
-        ForStatement = 182,
+        ForStatement = 183,
 >ForStatement : SyntaxKind
 
-        ForInStatement = 183,
+        ForInStatement = 184,
 >ForInStatement : SyntaxKind
 
-        ForOfStatement = 184,
+        ForOfStatement = 185,
 >ForOfStatement : SyntaxKind
 
-        ContinueStatement = 185,
+        ContinueStatement = 186,
 >ContinueStatement : SyntaxKind
 
-        BreakStatement = 186,
+        BreakStatement = 187,
 >BreakStatement : SyntaxKind
 
-        ReturnStatement = 187,
+        ReturnStatement = 188,
 >ReturnStatement : SyntaxKind
 
-        WithStatement = 188,
+        WithStatement = 189,
 >WithStatement : SyntaxKind
 
-        SwitchStatement = 189,
+        SwitchStatement = 190,
 >SwitchStatement : SyntaxKind
 
-        LabeledStatement = 190,
+        LabeledStatement = 191,
 >LabeledStatement : SyntaxKind
 
-        ThrowStatement = 191,
+        ThrowStatement = 192,
 >ThrowStatement : SyntaxKind
 
-        TryStatement = 192,
+        TryStatement = 193,
 >TryStatement : SyntaxKind
 
-        DebuggerStatement = 193,
+        DebuggerStatement = 194,
 >DebuggerStatement : SyntaxKind
 
-        VariableDeclaration = 194,
+        VariableDeclaration = 195,
 >VariableDeclaration : SyntaxKind
 
-        VariableDeclarationList = 195,
+        VariableDeclarationList = 196,
 >VariableDeclarationList : SyntaxKind
 
-        FunctionDeclaration = 196,
+        FunctionDeclaration = 197,
 >FunctionDeclaration : SyntaxKind
 
-        ClassDeclaration = 197,
+        ClassDeclaration = 198,
 >ClassDeclaration : SyntaxKind
 
-        InterfaceDeclaration = 198,
+        InterfaceDeclaration = 199,
 >InterfaceDeclaration : SyntaxKind
 
-        TypeAliasDeclaration = 199,
+        TypeAliasDeclaration = 200,
 >TypeAliasDeclaration : SyntaxKind
 
-        EnumDeclaration = 200,
+        EnumDeclaration = 201,
 >EnumDeclaration : SyntaxKind
 
-        ModuleDeclaration = 201,
+        ModuleDeclaration = 202,
 >ModuleDeclaration : SyntaxKind
 
-        ModuleBlock = 202,
+        ModuleBlock = 203,
 >ModuleBlock : SyntaxKind
 
-        ImportEqualsDeclaration = 203,
+        ImportEqualsDeclaration = 204,
 >ImportEqualsDeclaration : SyntaxKind
 
-        ImportDeclaration = 204,
+        ImportDeclaration = 205,
 >ImportDeclaration : SyntaxKind
 
-        ImportClause = 205,
+        ImportClause = 206,
 >ImportClause : SyntaxKind
 
-        NamespaceImport = 206,
+        NamespaceImport = 207,
 >NamespaceImport : SyntaxKind
 
-        NamedImports = 207,
+        NamedImports = 208,
 >NamedImports : SyntaxKind
 
-        ImportSpecifier = 208,
+        ImportSpecifier = 209,
 >ImportSpecifier : SyntaxKind
 
-        ExportAssignment = 209,
+        ExportAssignment = 210,
 >ExportAssignment : SyntaxKind
 
-        ExportDeclaration = 210,
+        ExportDeclaration = 211,
 >ExportDeclaration : SyntaxKind
 
-        NamedExports = 211,
+        NamedExports = 212,
 >NamedExports : SyntaxKind
 
-        ExportSpecifier = 212,
+        ExportSpecifier = 213,
 >ExportSpecifier : SyntaxKind
 
-        IncompleteDeclaration = 213,
+        IncompleteDeclaration = 214,
 >IncompleteDeclaration : SyntaxKind
 
-        ExternalModuleReference = 214,
+        ExternalModuleReference = 215,
 >ExternalModuleReference : SyntaxKind
 
-        CaseClause = 215,
+        CaseClause = 216,
 >CaseClause : SyntaxKind
 
-        DefaultClause = 216,
+        DefaultClause = 217,
 >DefaultClause : SyntaxKind
 
-        HeritageClause = 217,
+        HeritageClause = 218,
 >HeritageClause : SyntaxKind
 
-        CatchClause = 218,
+        CatchClause = 219,
 >CatchClause : SyntaxKind
 
-        PropertyAssignment = 219,
+        PropertyAssignment = 220,
 >PropertyAssignment : SyntaxKind
 
-        ShorthandPropertyAssignment = 220,
+        ShorthandPropertyAssignment = 221,
 >ShorthandPropertyAssignment : SyntaxKind
 
-        EnumMember = 221,
+        EnumMember = 222,
 >EnumMember : SyntaxKind
 
-        SourceFile = 222,
+        SourceFile = 223,
 >SourceFile : SyntaxKind
 
-        SyntaxList = 223,
+        SyntaxList = 224,
 >SyntaxList : SyntaxKind
 
-        Count = 224,
+        Count = 225,
 >Count : SyntaxKind
 
         FirstAssignment = 53,
@@ -883,7 +886,7 @@ declare module "typescript" {
         FirstKeyword = 66,
 >FirstKeyword : SyntaxKind
 
-        LastKeyword = 124,
+        LastKeyword = 125,
 >LastKeyword : SyntaxKind
 
         FirstFutureReservedWord = 104,
@@ -892,10 +895,10 @@ declare module "typescript" {
         LastFutureReservedWord = 112,
 >LastFutureReservedWord : SyntaxKind
 
-        FirstTypeNode = 140,
+        FirstTypeNode = 141,
 >FirstTypeNode : SyntaxKind
 
-        LastTypeNode = 148,
+        LastTypeNode = 149,
 >LastTypeNode : SyntaxKind
 
         FirstPunctuation = 14,
@@ -907,7 +910,7 @@ declare module "typescript" {
         FirstToken = 0,
 >FirstToken : SyntaxKind
 
-        LastToken = 123,
+        LastToken = 124,
 >LastToken : SyntaxKind
 
         FirstTriviaToken = 2,
@@ -934,7 +937,7 @@ declare module "typescript" {
         LastBinaryOperator = 64,
 >LastBinaryOperator : SyntaxKind
 
-        FirstNode = 125,
+        FirstNode = 126,
 >FirstNode : SyntaxKind
     }
     const enum NodeFlags {
@@ -3512,10 +3515,13 @@ declare module "typescript" {
         ContainsObjectLiteral = 524288,
 >ContainsObjectLiteral : TypeFlags
 
-        Intrinsic = 127,
+        ESSymbol = 1048576,
+>ESSymbol : TypeFlags
+
+        Intrinsic = 1048703,
 >Intrinsic : TypeFlags
 
-        Primitive = 510,
+        Primitive = 1049086,
 >Primitive : TypeFlags
 
         StringLike = 258,

@@ -290,7 +290,7 @@ module ts {
         var lastAccessor: AccessorDeclaration;
         var getAccessor: AccessorDeclaration;
         var setAccessor: AccessorDeclaration;
-        if (accessor.name.kind === SyntaxKind.ComputedPropertyName) {
+        if (hasDynamicName(accessor)) {
             firstAccessor = accessor;
             lastAccessor = accessor;
             if (accessor.kind === SyntaxKind.GetAccessor) {
@@ -305,21 +305,24 @@ module ts {
         }
         else {
             forEach(node.members, (member: Declaration) => {
-                if ((member.kind === SyntaxKind.GetAccessor || member.kind === SyntaxKind.SetAccessor) &&
-                    (<Identifier>member.name).text === (<Identifier>accessor.name).text &&
-                    (member.flags & NodeFlags.Static) === (accessor.flags & NodeFlags.Static)) {
-                    if (!firstAccessor) {
-                        firstAccessor = <AccessorDeclaration>member;
-                    }
+                if ((member.kind === SyntaxKind.GetAccessor || member.kind === SyntaxKind.SetAccessor)
+                    && (member.flags & NodeFlags.Static) === (accessor.flags & NodeFlags.Static)) {
+                    var memberName = getPropertyNameForPropertyNameNode(member.name);
+                    var accessorName = getPropertyNameForPropertyNameNode(accessor.name);
+                    if (memberName === accessorName) {
+                        if (!firstAccessor) {
+                            firstAccessor = <AccessorDeclaration>member;
+                        }
+                    
+                        lastAccessor = <AccessorDeclaration>member;
 
-                    lastAccessor = <AccessorDeclaration>member;
+                        if (member.kind === SyntaxKind.GetAccessor && !getAccessor) {
+                            getAccessor = <AccessorDeclaration>member;
+                        }
 
-                    if (member.kind === SyntaxKind.GetAccessor && !getAccessor) {
-                        getAccessor = <AccessorDeclaration>member;
-                    }
-
-                    if (member.kind === SyntaxKind.SetAccessor && !setAccessor) {
-                        setAccessor = <AccessorDeclaration>member;
+                        if (member.kind === SyntaxKind.SetAccessor && !setAccessor) {
+                            setAccessor = <AccessorDeclaration>member;
+                        }
                     }
                 }
             });
@@ -645,6 +648,7 @@ module ts {
                 case SyntaxKind.StringKeyword:
                 case SyntaxKind.NumberKeyword:
                 case SyntaxKind.BooleanKeyword:
+                case SyntaxKind.SymbolKeyword:
                 case SyntaxKind.VoidKeyword:
                 case SyntaxKind.StringLiteral:
                     return writeTextOfNode(currentSourceFile, type);

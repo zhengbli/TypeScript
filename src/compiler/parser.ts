@@ -2688,6 +2688,7 @@ module ts {
                 case SyntaxKind.StringKeyword:
                 case SyntaxKind.NumberKeyword:
                 case SyntaxKind.BooleanKeyword:
+                case SyntaxKind.SymbolKeyword:
                     // If these are followed by a dot, then parse these out as a dotted type reference instead.
                     var node = tryParse(parseKeywordAndNoDot);
                     return node || parseTypeReference();
@@ -2712,6 +2713,7 @@ module ts {
                 case SyntaxKind.StringKeyword:
                 case SyntaxKind.NumberKeyword:
                 case SyntaxKind.BooleanKeyword:
+                case SyntaxKind.SymbolKeyword:
                 case SyntaxKind.VoidKeyword:
                 case SyntaxKind.TypeOfKeyword:
                 case SyntaxKind.OpenBraceToken:
