@@ -27,6 +27,12 @@ module ts {
         diagnosticMessage: DiagnosticMessage;
         typeName?: DeclarationName;
     }
+
+    interface ScopeFrame {
+        names: Map<string>;
+        previous: ScopeFrame;
+    }
+
     type GetSymbolAccessibilityDiagnostic = (symbolAccesibilityResult: SymbolAccessiblityResult) => SymbolAccessibilityDiagnostic;
 
     interface EmitTextWriterWithSymbolWriter extends EmitTextWriter, SymbolWriter {
@@ -375,7 +381,6 @@ module ts {
         var enclosingDeclaration: Node;
         var currentSourceFile: SourceFile;
         var reportedDeclarationError = false;
-
         var emitJsDocComments = compilerOptions.removeComments ? function (declaration: Node) { } : writeJsDocComments;
         var emit = compilerOptions.stripInternal ? stripInternal : emitNode;
 
@@ -1753,6 +1758,11 @@ module ts {
 
             var currentSourceFile: SourceFile;
 
+            var lastFrame: ScopeFrame;
+            var currentScopeNames: Map<string>;
+
+            var generatedBlockScopeNames: string[];
+
             var extendsEmitted = false;
             var decorateEmitted = false;
             var tempCount = 0;
@@ -1827,6 +1837,66 @@ module ts {
             writeLine();
             writeEmittedFiles(writer.getText(), /*writeByteOrderMark*/ compilerOptions.emitBOM);
             return;
+
+            function enterNameScope(): boolean {
+                var names = currentScopeNames;
+                currentScopeNames = undefined;
+                if (names) {
+                    lastFrame = { names, previous: lastFrame };
+                    return true;
+                }
+                return false;
+            }
+
+            function exitNameScope(popFrame: boolean): void {
+                if (popFrame) {
+                    currentScopeNames = lastFrame.names;
+                    lastFrame = lastFrame.previous;
+                }
+                else {
+                    currentScopeNames = undefined;
+                }
+            }
+
+            function makeUniqueName(location: Node, baseName: string): string {
+                if (!isExistingName(location, baseName)) {
+                    // use current name as is
+                    return setGeneratedName(baseName);
+                }
+
+                // First try '_name'
+                if (baseName.charCodeAt(0) !== CharacterCodes._) {
+                    var baseName = "_" + baseName;
+                    if (!isExistingName(location, baseName)) {
+                        return setGeneratedName(baseName);
+                    }
+                }
+                // Find the first unique '_name_n', where n is a positive number
+                if (baseName.charCodeAt(baseName.length - 1) !== CharacterCodes._) {
+                    baseName += "_";
+                }
+                var i = 1;
+                while (true) {
+                    name = baseName + i;
+                    if (!isExistingName(location, name)) {
+                        return setGeneratedName(name);
+                    }
+                    i++;
+                }
+            }
+
+            function setGeneratedName(name: string): string {
+                if (!currentScopeNames) {
+                    currentScopeNames = {};
+                }
+
+                return currentScopeNames[name] = name;
+            }
+
+
+            function isExistingName(location: Node, name: string) {
+                return !resolver.isUnknownIdentifier(location, name) || (currentScopeNames && hasProperty(currentScopeNames, name));
+            }
 
             function initializeEmitterWithSourceMaps() {
                 var sourceMapDir: string; // The directory in which sourcemap will be
@@ -2189,7 +2259,7 @@ module ts {
             function createTempVariable(location: Node, forLoopVariable?: boolean): Identifier {
                 var name = forLoopVariable ? "_i" : undefined;
                 while (true) {
-                    if (name && resolver.isUnknownIdentifier(location, name)) {
+                    if (name && !isExistingName(location, name)) {
                         break;
                     }
                     // _a .. _h, _j ... _z, _0, _1, ...
@@ -2549,7 +2619,20 @@ module ts {
                 }
             }
 
+            function getBlockScopedVariableId(node: Identifier): number {
+                // return undefined for synthesized nodes
+                return node.parent && resolver.getBlockScopedVariableId(node);
+            }
+
             function emitIdentifier(node: Identifier) {
+                var symbolId = getBlockScopedVariableId(node);
+                if (symbolId !== undefined && generatedBlockScopeNames) {
+                    var text = generatedBlockScopeNames[symbolId];
+                    if (text) {
+                        write(text);
+                        return;
+                    }
+                }
                 if (!node.parent) {
                     write(node.text);
                 }
@@ -3106,6 +3189,32 @@ module ts {
                 emitEmbeddedStatement(node.statement);
             }
 
+            function emitStartOfVariableDeclarationList(decl: Node, startPos?: number): void {
+                var tokenKind = SyntaxKind.VarKeyword;
+                if (decl && languageVersion >= ScriptTarget.ES6) {
+                    if (isLet(decl)) {
+                        tokenKind = SyntaxKind.LetKeyword;
+                    }
+                    else if (isConst(decl)) {
+                        tokenKind = SyntaxKind.ConstKeyword;
+                    }
+                }
+
+                if (startPos !== undefined) {
+                    emitToken(tokenKind, startPos);
+                }
+                else {
+                    switch (tokenKind) {
+                        case SyntaxKind.VarKeyword:
+                            return write("var ");
+                        case SyntaxKind.LetKeyword:
+                            return write("let ");
+                        case SyntaxKind.ConstKeyword:
+                            return write("const ");
+                    }
+                }
+            }
+
             function emitForStatement(node: ForStatement) {
                 var endPos = emitToken(SyntaxKind.ForKeyword, node.pos);
                 write(" ");
@@ -3113,17 +3222,9 @@ module ts {
                 if (node.initializer && node.initializer.kind === SyntaxKind.VariableDeclarationList) {
                     var variableDeclarationList = <VariableDeclarationList>node.initializer;
                     var declarations = variableDeclarationList.declarations;
-                    if (declarations[0] && isLet(declarations[0])) {
-                        emitToken(SyntaxKind.LetKeyword, endPos);
-                    }
-                    else if (declarations[0] && isConst(declarations[0])) {
-                        emitToken(SyntaxKind.ConstKeyword, endPos);
-                    }
-                    else {
-                        emitToken(SyntaxKind.VarKeyword, endPos);
-                    }
+                    emitStartOfVariableDeclarationList(declarations[0], endPos);
                     write(" ");
-                    emitCommaList(variableDeclarationList.declarations);
+                    emitCommaList(declarations);
                 }
                 else if (node.initializer) {
                     emit(node.initializer);
@@ -3144,12 +3245,7 @@ module ts {
                     var variableDeclarationList = <VariableDeclarationList>node.initializer;
                     if (variableDeclarationList.declarations.length >= 1) {
                         var decl = variableDeclarationList.declarations[0];
-                        if (isLet(decl)) {
-                            emitToken(SyntaxKind.LetKeyword, endPos);
-                        }
-                        else {
-                            emitToken(SyntaxKind.VarKeyword, endPos);
-                        }
+                        emitStartOfVariableDeclarationList(decl, endPos);
                         write(" ");
                         emit(decl);
                     }
@@ -3310,6 +3406,14 @@ module ts {
                 }
             }
 
+            function createVoidZero(): Expression {
+                var zero = <LiteralExpression>createNode(SyntaxKind.NumericLiteral);
+                zero.text = "0";
+                var result = <VoidExpression>createNode(SyntaxKind.VoidExpression);
+                result.expression = zero;
+                return result;
+            }
+
             function emitDestructuring(root: BinaryExpression | VariableDeclaration | ParameterDeclaration, value?: Expression) {
                 var emitCount = 0;
                 // An exported declaration is actually emitted as an assignment (to a property on the module object), so
@@ -3326,6 +3430,8 @@ module ts {
                     if (emitCount++) {
                         write(", ");
                     }
+
+                    renameNonTopLevelLetAndConst(name);
                     if (name.parent && (name.parent.kind === SyntaxKind.VariableDeclaration || name.parent.kind === SyntaxKind.BindingElement)) {
                         emitModuleMemberName(<Declaration>name.parent);
                     }
@@ -3346,14 +3452,6 @@ module ts {
                         expr = identifier;
                     }
                     return expr;
-                }
-
-                function createVoidZero(): Expression {
-                    var zero = <LiteralExpression>createNode(SyntaxKind.NumericLiteral);
-                    zero.text = "0";
-                    var result = <VoidExpression>createNode(SyntaxKind.VoidExpression);
-                    result.expression = zero;
-                    return result;
                 }
 
                 function createDefaultValueCheck(value: Expression, defaultValue: Expression): Expression {
@@ -3537,9 +3635,96 @@ module ts {
                     }
                 }
                 else {
+                    var isLet = renameNonTopLevelLetAndConst(<Identifier>node.name);
                     emitModuleMemberName(node);
-                    emitOptional(" = ", node.initializer);
+
+                    var initializer = node.initializer;
+                    if (!initializer) {
+                        // downlevel emit for non-initialized let bindings defined in loops
+                        // for (...) {  let x; }
+                        // should be
+                        // for (...) { var <some-uniqie-name> = void 0; }
+                        // this is necessary to preserve ES6 semantic in scenarios like
+                        // for (...) { let x; console.log(x); x = 1 } // assignment on one iteration should not affect other iterations
+                        var initializer =
+                            languageVersion < ScriptTarget.ES6 &&
+                            (resolver.getNodeCheckFlags(node) & NodeCheckFlags.BlockScopedBindingInLoop) &&
+                            (getCombinedFlagsForIdentifier(<Identifier>node.name) & NodeFlags.Let) &&
+                            createVoidZero();
+                    }
+
+                    emitOptional(" = ", initializer);
                 }
+            }
+
+            function getEnclosingBlockScopeContainer(node: Node): Node {
+                var current = node;
+                while (current) {
+                    if (isAnyFunction(current)) {
+                        return current.parent;
+                    }
+                    switch (current.kind) {
+                        case SyntaxKind.CatchClause:
+                        case SyntaxKind.ForStatement:
+                        case SyntaxKind.ForInStatement:
+                        case SyntaxKind.SwitchKeyword:
+                            return current.parent;
+                        case SyntaxKind.Block:
+                            if (isAnyFunction(current.parent)) {
+                                return current.parent.parent;
+                            }
+                            else {
+                                return current.parent;
+                            }
+                        case SyntaxKind.SourceFile:
+                            return current;
+                    }
+
+                    current = current.parent;
+                }
+            }
+
+            function getCombinedFlagsForIdentifier(node: Identifier): NodeFlags {
+                if (!node.parent || (node.parent.kind !== SyntaxKind.VariableDeclaration && node.parent.kind !== SyntaxKind.BindingElement)) {
+                    return 0;
+                }
+
+                return getCombinedNodeFlags(node.parent);
+            }
+
+            function renameNonTopLevelLetAndConst(node: Node): void {
+                // do not rename if
+                // - language version is ES6+
+                // - node is synthesized (does not have a parent)
+                // - node is not identifier (can happen when tree is malformed)
+                // - node is definitely not name of variable declaration. 
+                // it still can be part of parameter declaration, this check will be done next
+                if (languageVersion >= ScriptTarget.ES6 ||
+                    !node.parent ||
+                    node.kind !== SyntaxKind.Identifier ||
+                    (node.parent.kind !== SyntaxKind.VariableDeclaration && node.parent.kind !== SyntaxKind.BindingElement)) {
+                    return;
+                }
+
+                var combinedFlags = getCombinedFlagsForIdentifier(<Identifier>node);
+                if (((combinedFlags & NodeFlags.BlockScoped) === 0) || combinedFlags & NodeFlags.Export) {
+                    // do not rename exported or non-block scoped variables
+                    return;
+                }
+
+                // here it is known that node is a block scoped variable
+                var list = getAncestor(node, SyntaxKind.VariableDeclarationList);
+                if (list.parent.kind === SyntaxKind.VariableStatement && list.parent.parent.kind === SyntaxKind.SourceFile) {
+                    // do not rename variables that are defined on source file level
+                    return;
+                }
+
+                var generatedName = makeUniqueName(getEnclosingBlockScopeContainer(node), (<Identifier>node).text);
+                var symbolId = resolver.getBlockScopedVariableId(<Identifier>node);
+                if (!generatedBlockScopeNames) {
+                    generatedBlockScopeNames = [];
+                }
+                generatedBlockScopeNames[symbolId] = generatedName;
             }
 
             function emitExportVariableAssignments(node: VariableDeclaration | BindingElement) {
@@ -3554,15 +3739,7 @@ module ts {
 
             function emitVariableStatement(node: VariableStatement) {
                 if (!(node.flags & NodeFlags.Export)) {
-                    if (isLet(node.declarationList)) {
-                        write("let ");
-                    }
-                    else if (isConst(node.declarationList)) {
-                        write("const ");
-                    }
-                    else {
-                        write("var ");
-                    }
+                    emitStartOfVariableDeclarationList(node.declarationList);
                 }
                 emitCommaList(node.declarationList.declarations);
                 write(";");
@@ -3739,6 +3916,8 @@ module ts {
                 tempVariables = undefined;
                 tempParameters = undefined;
 
+                var popFrame = enterNameScope()
+
                 // When targeting ES6, emit arrow function natively in ES6
                 if (shouldEmitAsArrowFunction(node)) {
                     emitSignatureParametersForArrow(node);
@@ -3830,6 +4009,9 @@ module ts {
                     emitEnd(node);
                     write(";");
                 }
+
+                exitNameScope(popFrame);
+
                 tempCount = saveTempCount;
                 tempVariables = saveTempVariables;
                 tempParameters = saveTempParameters;
@@ -4074,6 +4256,9 @@ module ts {
                     tempCount = 0;
                     tempVariables = undefined;
                     tempParameters = undefined;
+
+                    var popFrame = enterNameScope();
+
                     // Emit the constructor overload pinned comments
                     forEach(node.members, member => {
                         if (member.kind === SyntaxKind.Constructor && !(<ConstructorDeclaration>member).body) {
@@ -4134,6 +4319,9 @@ module ts {
                     if (ctor) {
                         emitTrailingComments(ctor);
                     }
+
+                    exitNameScope(popFrame);
+
                     tempCount = saveTempCount;
                     tempVariables = saveTempVariables;
                     tempParameters = saveTempParameters;
@@ -4457,7 +4645,11 @@ module ts {
                     var saveTempVariables = tempVariables;
                     tempCount = 0;
                     tempVariables = undefined;
+                    var popFrame = enterNameScope();
+
                     emit(node.body);
+
+                    exitNameScope(popFrame);
                     tempCount = saveTempCount;
                     tempVariables = saveTempVariables;
                 }

@@ -1019,6 +1019,7 @@ declare module "typescript" {
         isEntityNameVisible(entityName: EntityName, enclosingDeclaration: Node): SymbolVisibilityResult;
         getConstantValue(node: EnumMember | PropertyAccessExpression | ElementAccessExpression): number;
         isUnknownIdentifier(location: Node, name: string): boolean;
+        getBlockScopedVariableId(node: Identifier): number;
     }
     const enum SymbolFlags {
         FunctionScopedVariable = 1,
@@ -1124,6 +1125,7 @@ declare module "typescript" {
         ContextChecked = 64,
         EnumValuesComputed = 128,
         EmitDecorate = 256,
+        BlockScopedBindingInLoop = 512,
     }
     interface NodeLinks {
         resolvedType?: Type;

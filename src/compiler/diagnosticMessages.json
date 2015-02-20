@@ -1569,6 +1569,10 @@
         "category": "Error",
         "code": 4089
     },
+    "Code in the loop captures block-scoped variable '{0}' in closure. This is natively supported in ECMAScript 6 or higher.": {
+        "category": "Error",
+        "code": 4091
+    },
     "The current host does not support the '{0}' option.": {
         "category": "Error",
         "code": 5001

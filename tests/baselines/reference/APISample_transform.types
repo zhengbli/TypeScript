@@ -3187,6 +3187,11 @@ declare module "typescript" {
 >location : Node
 >Node : Node
 >name : string
+
+        getBlockScopedVariableId(node: Identifier): number;
+>getBlockScopedVariableId : (node: Identifier) => number
+>node : Identifier
+>Identifier : Identifier
     }
     const enum SymbolFlags {
 >SymbolFlags : SymbolFlags
@@ -3501,6 +3506,9 @@ declare module "typescript" {
 
         EmitDecorate = 256,
 >EmitDecorate : NodeCheckFlags
+
+        BlockScopedBindingInLoop = 512,
+>BlockScopedBindingInLoop : NodeCheckFlags
     }
     interface NodeLinks {
 >NodeLinks : NodeLinks
