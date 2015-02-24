@@ -4430,7 +4430,7 @@ module ts {
             return nextTokenIsIdentifier() && nextToken() === SyntaxKind.CloseParenToken;
         }
 
-        function parseVariableStatement(fullStart: number, modifiers: ModifiersArray): VariableStatement {
+        function parseVariableStatement(fullStart: number, decorators: NodeArray<Decorator>, modifiers: ModifiersArray): VariableStatement {
             var node = <VariableStatement>createNode(SyntaxKind.VariableStatement, fullStart);
             node.decorators = decorators;
             setModifiers(node, modifiers);
@@ -4673,7 +4673,9 @@ module ts {
                         computedPropertyName.expression = arrayExpr.elements[0];
                         for (var i = 1; i < arrayExpr.elements.length; i++) {
                             var commaExpr = <BinaryExpression>createNode(SyntaxKind.BinaryExpression, computedPropertyName.expression.pos);
-                            commaExpr.operator = SyntaxKind.CommaToken;
+                            var commaToken = createNode(SyntaxKind.CommaToken, computedPropertyName.expression.end);
+                            commaToken.end = arrayExpr.elements[i].pos;
+                            commaExpr.operatorToken = commaToken;
                             commaExpr.left = computedPropertyName.expression;
                             commaExpr.right = arrayExpr.elements[i];
                             computedPropertyName.expression = finishNode(commaExpr, commaExpr.right.end);
@@ -4733,7 +4735,7 @@ module ts {
                 }
                 else if (argument.kind === SyntaxKind.BinaryExpression) {
                     var binaryExpression = <BinaryExpression>argument;
-                    Debug.assert(binaryExpression.operator === SyntaxKind.EqualsToken);
+                    Debug.assert(binaryExpression.operatorToken.kind === SyntaxKind.EqualsToken);
                     if (binaryExpression.left.kind === SyntaxKind.Identifier) {
                         name = <Identifier>binaryExpression.left;
                         initializer = binaryExpression.right;

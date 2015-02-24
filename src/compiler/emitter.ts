@@ -2590,7 +2590,7 @@ module ts {
             // This function specifically handles numeric/string literals for enum and accessor 'identifiers'.
             // In a sense, it does not actually emit identifiers as much as it declares a name for a specific property.
             // For example, this is utilized when feeding in a result to Object.defineProperty.
-            function emitExpressionForPropertyName(node: DeclarationName) {
+            function emitExpressionForPropertyName(node: DeclarationName, tempNames?: Identifier[]) {
                 Debug.assert(node.kind !== SyntaxKind.BindingElement);
 
                 if (node.kind === SyntaxKind.StringLiteral) {
@@ -4562,6 +4562,9 @@ module ts {
                         emitStart(member);
                         emitStart((<MethodDeclaration>member).name);
                         emitNode(node.name); // TODO (shkamat,drosen): comment for why emitNode instead of emit.
+                        if (!(member.flags & NodeFlags.Static)) {
+                            write(".prototype");
+                        }
                         if (member.decorators && !computedPropertyNameCache && (<MethodDeclaration>member).name.kind === SyntaxKind.ComputedPropertyName) {
                             computedPropertyNameCache = [];
                         }
@@ -4803,7 +4806,7 @@ module ts {
                         return member.decorators;
                     case SyntaxKind.GetAccessor:
                     case SyntaxKind.SetAccessor:
-                        var accessors = getAllAccessorDeclarations(node, <AccessorDeclaration>member);
+                        var accessors = getAllAccessorDeclarations(node.members, <AccessorDeclaration>member);
                         if (member === accessors.firstAccessor) {
                             var decorators = accessors.firstAccessor.decorators;
                             if (member !== accessors.lastAccessor && accessors.lastAccessor.decorators) {
@@ -5006,7 +5009,7 @@ module ts {
                         break;
                     case SyntaxKind.GetAccessor:
                     case SyntaxKind.SetAccessor:
-                        var accessors = getAllAccessorDeclarations(node, <AccessorDeclaration>member);
+                        var accessors = getAllAccessorDeclarations(node.members, <AccessorDeclaration>member);
                         if (accessors.setAccessor) {
                             emitDecoratorsOfParameters(accessors.setAccessor, info);
                         }

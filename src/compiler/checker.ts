@@ -9351,8 +9351,6 @@ module ts {
             checkGrammarForOfStatement(node);
         }
 
-        }
-
         function checkForInStatement(node: ForInStatement) {
             // Grammar checking 
             checkGrammarForInOrForOfStatement(node);
@@ -10086,7 +10084,7 @@ module ts {
                             }
                             break;
                         case SyntaxKind.BinaryExpression:
-                            switch ((<BinaryExpression>e).operator) {
+                            switch ((<BinaryExpression>e).operatorToken.kind) {
                                 case SyntaxKind.BarBarToken: return left || right;
                                 case SyntaxKind.AmpersandAmpersandToken: return left && right;
                             }
