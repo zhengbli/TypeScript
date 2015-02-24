@@ -595,13 +595,49 @@
         "category": "Error",
         "code": 1191
     },
-    "Decorators cannot appear here.": {
+    "Decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
         "category": "Error",
         "code": 1192
     },
-    "Decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
+    "'{0}' is obsolete.":  {
         "category": "Error",
-        "code": 1193
+        "code": 1194
+    },
+    "'{0}' is obsolete: '{1}'": {
+        "category": "Error",
+        "code": 1195
+    },
+    "Decorators cannot appear here.": {
+        "category": "Error",
+        "code": 1196
+    },
+    "Non-ambient decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
+        "category": "Error",
+        "code": 1197
+    },
+    "Decorator '{0}' is not valid on this declaration type. It is only valid on '{1}' declarations.": {
+        "category": "Error",
+        "code": 1198
+    },
+    "Decorator '{0}' is not valid on this declaration type.": {
+        "category": "Error",
+        "code": 1199
+    },
+    "Decorator is not valid on this declaration type.": {
+        "category": "Error",
+        "code": 1200
+    },
+    "Argument to ambient decorator must be constant expression.": {
+        "category": "Error",
+        "code": 1201
+    },
+    "'{0}' is obsolete.":  {
+        "category": "Error",
+        "code": 1202
+    },
+    "'{0}' is obsolete: '{1}'": {
+        "category": "Error",
+        "code": 1203
     },
 
     "Duplicate identifier '{0}'.": {
@@ -1288,6 +1324,10 @@
         "category": "Error",
         "code": 2482
     },
+    "Cannot find global decorator function '{0}'.": {
+        "category": "Error",
+        "code": 2483
+    },
 
     "Import declaration '{0}' is using private name '{1}'.": {
         "category": "Error",
@@ -1792,6 +1832,10 @@
     "Do not emit declarations for code that has an '@internal' annotation.": {
         "category": "Message",
         "code": 6056
+    },
+    "SYMBOL": {
+        "category": "Message",
+        "code": 6057
     },
 
     "Variable '{0}' implicitly has an '{1}' type.": {

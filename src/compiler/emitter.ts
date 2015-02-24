@@ -283,14 +283,6 @@ module ts {
         }
     }
 
-    function getFirstConstructorWithBody(node: ClassDeclaration): ConstructorDeclaration {
-        return forEach(node.members, member => {
-            if (member.kind === SyntaxKind.Constructor && nodeIsPresent((<ConstructorDeclaration>member).body)) {
-                return <ConstructorDeclaration>member;
-            }
-        });
-    }
-
     function getAllAccessorDeclarations(node: ClassDeclaration, accessor: AccessorDeclaration) {
         var firstAccessor: AccessorDeclaration;
         var lastAccessor: AccessorDeclaration;
@@ -1318,7 +1310,7 @@ module ts {
             if (hasDynamicName(node)) {
                 return;
             }
-
+            
             var accessors = getAllAccessorDeclarations(<ClassDeclaration>node.parent, node);
             if (node === accessors.firstAccessor) {
                 emitJsDocComments(accessors.getAccessor);
@@ -1699,7 +1691,7 @@ module ts {
             referencePathsOutput += "/// <reference path=\"" + declFileName + "\" />" + newLine;
         }
     }
-
+    
     export function getDeclarationDiagnostics(host: EmitHost, resolver: EmitResolver, targetSourceFile: SourceFile): Diagnostic[] {
         var diagnostics: Diagnostic[] = [];
         var jsFilePath = getOwnEmitOutputFilePath(targetSourceFile, host, ".js");
@@ -2797,7 +2789,7 @@ module ts {
                         tempNames[node.id] = tempName;
                         write(tempName.text);
                         write(" = ");
-                        emit(node.expression);
+                emit(node.expression);
                     }
                 }
                 else {
@@ -2946,7 +2938,22 @@ module ts {
                 write(")");
             }
 
+            function emitVoidExpressionForConditionalRemoval(node: Expression): void {
+                if (node.parent.kind !== SyntaxKind.ExpressionStatement) {
+                    if (node.parent.kind === SyntaxKind.ParenthesizedExpression) {
+                        write("void 0");
+                    }
+                    else {
+                        write("(void 0)");
+                    }
+                }
+            }
+
             function emitCallExpression(node: CallExpression) {
+                if (resolver.getNodeCheckFlags(node) & NodeCheckFlags.ConditionallyRemoved) {
+                    emitVoidExpressionForConditionalRemoval(node);
+                    return;
+                }
                 if (languageVersion < ScriptTarget.ES6 && hasSpreadElement(node.arguments)) {
                     emitCallWithSpread(node);
                     return;
@@ -2977,6 +2984,10 @@ module ts {
             }
 
             function emitNewExpression(node: NewExpression) {
+                if (resolver.getNodeCheckFlags(node) & NodeCheckFlags.ConditionallyRemoved) {
+                    emitVoidExpressionForConditionalRemoval(node);
+                    return;
+                }
                 write("new ");
                 emit(node.expression);
                 if (node.arguments) {
@@ -2987,6 +2998,10 @@ module ts {
             }
 
             function emitTaggedTemplateExpression(node: TaggedTemplateExpression): void {
+                if (resolver.getNodeCheckFlags(node) & NodeCheckFlags.ConditionallyRemoved) {
+                    emitVoidExpressionForConditionalRemoval(node);
+                    return;
+                }
                 emit(node.tag);
                 write(" ");
                 emit(node.template);
@@ -3107,7 +3122,7 @@ module ts {
 
             function emitBlock(node: Block) {
                 if (isSingleLineBlock(node)) {
-                    emitToken(SyntaxKind.OpenBraceToken, node.pos);
+                emitToken(SyntaxKind.OpenBraceToken, node.pos);
                     write(" ");
                     emitToken(SyntaxKind.CloseBraceToken, node.statements.end);
                     return;
@@ -3301,7 +3316,7 @@ module ts {
 
             function isOnSameLine(node1: Node, node2: Node) {
                 return getLineOfLocalPosition(currentSourceFile, skipTrivia(currentSourceFile.text, node1.pos)) ===
-                    getLineOfLocalPosition(currentSourceFile, skipTrivia(currentSourceFile.text, node2.pos));
+                getLineOfLocalPosition(currentSourceFile, skipTrivia(currentSourceFile.text, node2.pos));
             }
 
             function nodeEndIsOnSameLineAsNodeStart(node1: Node, node2: Node) {
@@ -3389,6 +3404,13 @@ module ts {
                 emitNode(node.name);
                 emitEnd(node.name);
             }
+            function createVoidZero(): Expression {
+                var zero = <LiteralExpression>createNode(SyntaxKind.NumericLiteral);
+                zero.text = "0";
+                var result = <VoidExpression>createNode(SyntaxKind.VoidExpression);
+                result.expression = zero;
+                return result;
+            }
 
             function emitExportMemberAssignments(name: Identifier) {
                 if (exportSpecifiers && hasProperty(exportSpecifiers, name.text)) {
@@ -3404,14 +3426,6 @@ module ts {
                         write(";");
                     });
                 }
-            }
-
-            function createVoidZero(): Expression {
-                var zero = <LiteralExpression>createNode(SyntaxKind.NumericLiteral);
-                zero.text = "0";
-                var result = <VoidExpression>createNode(SyntaxKind.VoidExpression);
-                result.expression = zero;
-                return result;
             }
 
             function emitDestructuring(root: BinaryExpression | VariableDeclaration | ParameterDeclaration, value?: Expression) {
@@ -3931,73 +3945,73 @@ module ts {
                     write(" { }");
                 }
                 else {
-                    write(" {");
-                    scopeEmitStart(node);
+                write(" {");
+                scopeEmitStart(node);
 
-                    if (!node.body) {
-                        writeLine();
+                if (!node.body) {
+                    writeLine();
+                    write("}");
+                }
+                else {
+                    increaseIndent();
+
+                    emitDetachedComments(node.body.kind === SyntaxKind.Block ? (<Block>node.body).statements : node.body);
+
+                    var startIndex = 0;
+                    if (node.body.kind === SyntaxKind.Block) {
+                        startIndex = emitDirectivePrologues((<Block>node.body).statements, /*startWithNewLine*/ true);
+                    }
+                    var outPos = writer.getTextPos();
+
+                    emitCaptureThisForNodeIfNecessary(node);
+                    emitDefaultValueAssignments(node);
+                    emitRestParameter(node);
+                    if (node.body.kind !== SyntaxKind.Block && outPos === writer.getTextPos()) {
+                        decreaseIndent();
+                        write(" ");
+                        emitStart(node.body);
+                        write("return ");
+
+                        // Don't emit comments on this body.  We'll have already taken care of it above 
+                        // when we called emitDetachedComments.
+                        emitNode(node.body, /*disableComments:*/ true);
+                        emitEnd(node.body);
+                        write(";");
+                        emitTempDeclarations(/*newLine*/ false);
+                        write(" ");
+                        emitStart(node.body);
                         write("}");
+                        emitEnd(node.body);
                     }
                     else {
-                        increaseIndent();
-
-                        emitDetachedComments(node.body.kind === SyntaxKind.Block ? (<Block>node.body).statements : node.body);
-
-                        var startIndex = 0;
                         if (node.body.kind === SyntaxKind.Block) {
-                            startIndex = emitDirectivePrologues((<Block>node.body).statements, /*startWithNewLine*/ true);
+                            emitLinesStartingAt((<Block>node.body).statements, startIndex);
                         }
-                        var outPos = writer.getTextPos();
-
-                        emitCaptureThisForNodeIfNecessary(node);
-                        emitDefaultValueAssignments(node);
-                        emitRestParameter(node);
-                        if (node.body.kind !== SyntaxKind.Block && outPos === writer.getTextPos()) {
-                            decreaseIndent();
-                            write(" ");
-                            emitStart(node.body);
+                        else {
+                            writeLine();
+                            emitLeadingComments(node.body);
                             write("return ");
-
-                            // Don't emit comments on this body.  We'll have already taken care of it above 
-                            // when we called emitDetachedComments.
-                            emitNode(node.body, /*disableComments:*/ true);
-                            emitEnd(node.body);
+                            emit(node.body, /*disableComments:*/ true);
                             write(";");
-                            emitTempDeclarations(/*newLine*/ false);
-                            write(" ");
+                            emitTrailingComments(node.body);
+                        }
+                        emitTempDeclarations(/*newLine*/ true);
+                        writeLine();
+                        if (node.body.kind === SyntaxKind.Block) {
+                            emitLeadingCommentsOfPosition((<Block>node.body).statements.end);
+                            decreaseIndent();
+                            emitToken(SyntaxKind.CloseBraceToken, (<Block>node.body).statements.end);
+                        }
+                        else {
+                            decreaseIndent();
                             emitStart(node.body);
                             write("}");
                             emitEnd(node.body);
                         }
-                        else {
-                            if (node.body.kind === SyntaxKind.Block) {
-                                emitLinesStartingAt((<Block>node.body).statements, startIndex);
-                            }
-                            else {
-                                writeLine();
-                                emitLeadingComments(node.body);
-                                write("return ");
-                                emit(node.body, /*disableComments:*/ true);
-                                write(";");
-                                emitTrailingComments(node.body);
-                            }
-                            emitTempDeclarations(/*newLine*/ true);
-                            writeLine();
-                            if (node.body.kind === SyntaxKind.Block) {
-                                emitLeadingCommentsOfPosition((<Block>node.body).statements.end);
-                                decreaseIndent();
-                                emitToken(SyntaxKind.CloseBraceToken, (<Block>node.body).statements.end);
-                            }
-                            else {
-                                decreaseIndent();
-                                emitStart(node.body);
-                                write("}");
-                                emitEnd(node.body);
-                            }
-                        }
                     }
+                }
 
-                    scopeEmitEnd();
+                scopeEmitEnd();
                 }
 
                 if (node.flags & NodeFlags.Export) {
@@ -4358,9 +4372,126 @@ module ts {
                 return undefined;
             }
 
+            function shouldEmitSerializedTypeForNode(decorated: Declaration): boolean {
+                switch (decorated.kind) {
+                    case SyntaxKind.ClassDeclaration:
+                    case SyntaxKind.PropertyDeclaration:
+                    case SyntaxKind.Constructor:
+                    case SyntaxKind.MethodDeclaration:
+                    case SyntaxKind.GetAccessor:
+                    case SyntaxKind.SetAccessor:
+                    case SyntaxKind.Parameter:
+                        return true;
+                }
+                return false;
+            }
+
+            function shouldEmitSerializedParameterTypesOrReturnTypeForNode(decorated: Declaration): boolean {
+                switch (decorated.kind) {
+                    case SyntaxKind.ClassDeclaration:
+                    case SyntaxKind.Constructor:
+                    case SyntaxKind.MethodDeclaration:
+                    case SyntaxKind.GetAccessor:
+                    case SyntaxKind.SetAccessor:
+                        return true;
+                }
+                return false;
+            }
+
+            function createSerializedTypeExpression(type: string): Expression {
+                if (!type || type === "void 0") {
+                    return createVoidZero();
+                }
+                var serializedType = <Identifier>createNode(SyntaxKind.Identifier);
+                serializedType.text = type;
+                return serializedType;
+            }
+
+            function createSerializedTypeArrayExpression(types: string[]): ArrayLiteralExpression {
+                var array = <ArrayLiteralExpression>createNode(SyntaxKind.ArrayLiteralExpression);
+                var elements = <NodeArray<Expression>>[];
+                for (var i = 0; i < types.length; i++) {
+                    elements[i] = createSerializedTypeExpression(types[i]);
+                }
+                array.elements = elements;
+                return array;
+            }
+
+            function rewriteDecoratorFactory(node: CallExpression): CallExpression {
+                var decorator = <Decorator>node.parent;
+                if (!isDeclaration(decorator.parent)) {
+                    return node;
+                }
+                var decorated = <Declaration>decorator.parent;
+                var signature = resolver.getResolvedSignature(node);
+                var declaration = signature.declaration;
+                if (!declaration) {
+                    return node;
+                }
+                var newArgumentList: Expression[];
+                var args = node.arguments;
+                var argCount = args ? args.length : 0;
+                var parameters = declaration.parameters;
+                var parameterCount = signature.hasRestParameter ? parameters.length - 1 : parameters.length;
+                var lastArg = argCount;
+                for (var i = argCount; i < parameterCount; i++) {
+                    var parameter = parameters[i];
+                    var flags = resolver.getNodeCheckFlags(parameter);
+                    if (flags & (NodeCheckFlags.EmitDecoratedType | NodeCheckFlags.EmitDecoratedParamTypes | NodeCheckFlags.EmitDecoratedReturnType)) {
+                        var shouldEmitCompilerGeneratedArgument = flags & NodeCheckFlags.EmitDecoratedType
+                            ? shouldEmitSerializedTypeForNode
+                            : shouldEmitSerializedParameterTypesOrReturnTypeForNode;
+                        if (shouldEmitCompilerGeneratedArgument(decorated)) {
+                            if (!newArgumentList) {
+                                newArgumentList = args.slice(0);
+                            }
+                            while (lastArg < i) {
+                                newArgumentList.push(createVoidZero());
+                                lastArg++;
+                            }
+                            if (flags & NodeCheckFlags.EmitDecoratedType) {                                
+                                var serializedType = resolver.serializeTypeOfDeclaration(<ClassDeclaration | PropertyDeclaration | FunctionLikeDeclaration | ParameterDeclaration>decorated);
+                                newArgumentList.push(createSerializedTypeExpression(serializedType));
+                            }
+                            else if (flags & NodeCheckFlags.EmitDecoratedParamTypes) {
+                                var serializedTypes = resolver.serializeParameterTypesOfDeclaration(<ClassDeclaration | FunctionLikeDeclaration>decorated);
+                                newArgumentList.push(createSerializedTypeArrayExpression(serializedTypes));
+                            }
+                            else if (flags & NodeCheckFlags.EmitDecoratedReturnType) {
+                                var serializedType = resolver.serializeReturnTypeOfDeclaration(<ClassDeclaration | FunctionLikeDeclaration>decorated);
+                                newArgumentList.push(createSerializedTypeExpression(serializedType));
+                            }
+                            lastArg++;
+                        }
+                    }
+                }
+                if (newArgumentList) {
+                    var updated = <CallExpression>createNode(SyntaxKind.CallExpression);
+                    updated.expression = node.expression;
+                    updated.arguments = <NodeArray<Expression>>newArgumentList;
+                    updated.pos = node.pos;
+                    updated.end = node.end;
+                    updated.flags = node.flags;
+                    return updated;
+                }
+                return node;
+            }
+
+            function emitExpressionOfDecorator(node: Decorator) {
+                var expression = node.expression;
+                if (expression.kind === SyntaxKind.CallExpression) {
+                    expression = rewriteDecoratorFactory(<CallExpression>expression);
+                }
+                emit(expression);
+            }
+
+            function isNonAmbientDecorator(node: Decorator): boolean {
+                return (resolver.getNodeCheckFlags(node) & NodeCheckFlags.AmbientDecorator) === 0;
+            }
+
             function emitDecoratorsOfParameter(node: FunctionLikeDeclaration, parameter: ParameterDeclaration, parameterIndex: number, info: DecoratorEmitInfo) {
-                var decorators = parameter.decorators;
-                if (!decorators) {
+                var decorators = filter(parameter.decorators, isNonAmbientDecorator);
+                if (!decorators || decorators.length === 0) {
                     return;
                 }
 
@@ -4369,7 +4500,7 @@ module ts {
                 for (var i = 0; i < decoratorCount; i++) {
                     var decorator = decorators[i];
                     emitStart(decorator);
-                    emit(decorator.expression);
+                    emitExpressionOfDecorator(decorator);
                     write("(");
                     if (i < decoratorCount - 1) {
                         write("(");
@@ -4422,16 +4553,6 @@ module ts {
             }
 
             function emitDecoratorsOfMember(node: ClassDeclaration, member: ClassElement, info: DecoratorEmitInfo) {
-                var name = member.name;
-                var decorators = getDecoratorsOfMember(node, member);
-                if (!decorators) {
-                    return;
-                }
-
-                if (name.kind === SyntaxKind.ComputedPropertyName && !info.computedPropertyNameCache) {
-                    info.computedPropertyNameCache = [];
-                }
-
                 switch (member.kind) {
                     case SyntaxKind.MethodDeclaration:
                         emitDecoratorsOfParameters(<MethodDeclaration>member, info);
@@ -4443,6 +4564,17 @@ module ts {
                             emitDecoratorsOfParameters(accessors.setAccessor, info);
                         }
                         break;
+                }
+
+                var name = member.name;
+                var decorators = getDecoratorsOfMember(node, member);
+                decorators = filter(decorators, isNonAmbientDecorator);
+                if (!decorators || decorators.length === 0) {
+                    return;
+                }
+
+                if (name.kind === SyntaxKind.ComputedPropertyName && !info.computedPropertyNameCache) {
+                    info.computedPropertyNameCache = [];
                 }
 
                 if (languageVersion >= ScriptTarget.ES5) {
@@ -4459,7 +4591,7 @@ module ts {
                         }
                         var decorator = decorators[i];
                         emitStart(decorator);
-                        emit(decorator.expression);
+                        emitExpressionOfDecorator(decorator);
                         emitEnd(decorator);
                     }
                     write("]");
@@ -4474,23 +4606,23 @@ module ts {
             }
 
             function emitDecoratorsOfConstructor(node: ClassDeclaration, info: DecoratorEmitInfo) {
-                var decorators = node.decorators;
-                if (!node.decorators) {
-                    return;
-                }
-                
                 var constructor = getFirstConstructorWithBody(node);
                 if (constructor) {
                     emitDecoratorsOfParameters(constructor, info);
                 }
 
+                var decorators = filter(node.decorators, isNonAmbientDecorator);
+                if (!decorators || decorators.length === 0) {
+                    return;
+                }
+                
                 emitStart(node);
                 for (var i = 0; i < decorators.length; i++) {
                     var decorator = decorators[i];
                     emitStart(decorator);
                     emitNode(node.name);
                     write(" = ");
-                    emit(decorators[i].expression);
+                    emitExpressionOfDecorator(decorator);
                     write("(");
                     emitEnd(decorator);
                     if (i < decorators.length - 1) {
@@ -4879,7 +5011,7 @@ module ts {
                     }
                 });
             }
-            
+
             function sortAMDModules(amdModules: {name: string; path: string}[]) {
                 // AMD modules with declared variable names go first
                 return amdModules.sort((moduleA, moduleB) => {
@@ -5315,7 +5447,7 @@ module ts {
                 }
                 emitNewLineBeforeLeadingComments(currentSourceFile, writer, { pos: pos, end: pos }, leadingComments);
                 // Leading comments are emitted at /*leading comment1 */space/*leading comment*/space
-                emitComments(currentSourceFile, writer, leadingComments, /*trailingSeparator*/ true, newLine, writeComment);
+                emitComments(currentSourceFile, writer, leadingComments, /*trailingSeparator*/ true, newLine, writeComment);                
             }
 
             function emitDetachedCommentsAtPosition(node: TextRange) {

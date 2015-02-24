@@ -495,6 +495,17 @@ module ts {
         return (<CallExpression>node).expression;
     }
 
+    function getConstructorWithBody(member: ClassElement): ConstructorDeclaration {
+        if (member.kind === SyntaxKind.Constructor && nodeIsPresent((<ConstructorDeclaration>member).body)) {
+            return <ConstructorDeclaration>member;
+        }
+        return undefined;
+    }
+
+    export function getFirstConstructorWithBody(node: ClassDeclaration): ConstructorDeclaration {
+        return forEach(node.members, getConstructorWithBody);
+    }
+
     export function isExpression(node: Node): boolean {
         switch (node.kind) {
             case SyntaxKind.ThisKeyword:
@@ -580,6 +591,16 @@ module ts {
                             return true;
                         }
                 }
+        }
+        return false;
+    }
+
+    export function isCallLikeExpression(node: Node): boolean {
+        switch (node.kind) {
+            case SyntaxKind.CallExpression:
+            case SyntaxKind.NewExpression:
+            case SyntaxKind.TaggedTemplateExpression:
+                return true;
         }
         return false;
     }

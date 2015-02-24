@@ -1218,6 +1218,11 @@ module ts {
         getConstantValue(node: EnumMember | PropertyAccessExpression | ElementAccessExpression): number;
         isUnknownIdentifier(location: Node, name: string): boolean;
         getBlockScopedVariableId(node: Identifier): number;
+        getResolvedSignature(node: CallLikeExpression): Signature;
+        serializeTypeOfDeclaration(node: ClassDeclaration | FunctionLikeDeclaration | PropertyDeclaration | ParameterDeclaration): string;
+        serializeParameterTypesOfDeclaration(node: ClassDeclaration | FunctionLikeDeclaration): string[];
+        serializeReturnTypeOfDeclaration(node: ClassDeclaration | FunctionLikeDeclaration): string;
+        getMetadataForSymbol(symbol: Symbol): DecoratorMetadata[];        
     }
 
     export const enum SymbolFlags {
@@ -1324,7 +1329,9 @@ module ts {
         exportAssignmentSymbol?: Symbol;    // Symbol exported from external module
         unionType?: UnionType;              // Containing union type for union property
         resolvedExports?: SymbolTable;      // Resolved exports of module
-    }
+        decoratorMetadata?: DecoratorMetadata[];    // Resolved ambient decorator metadata        
+
+   }
 
     export interface TransientSymbol extends Symbol, SymbolLinks { }
 
@@ -1333,24 +1340,30 @@ module ts {
     }
 
     export const enum NodeCheckFlags {
-        TypeChecked         = 0x00000001,  // Node has been type checked
-        LexicalThis         = 0x00000002,  // Lexical 'this' reference
-        CaptureThis         = 0x00000004,  // Lexical 'this' used in body
-        EmitExtends         = 0x00000008,  // Emit __extends
-        SuperInstance       = 0x00000010,  // Instance 'super' reference
-        SuperStatic         = 0x00000020,  // Static 'super' reference
-        ContextChecked      = 0x00000040,  // Contextual types have been assigned
+        TypeChecked             = 0x00000001,  // Node has been type checked
+        LexicalThis             = 0x00000002,  // Lexical 'this' reference
+        CaptureThis             = 0x00000004,  // Lexical 'this' used in body
+        EmitExtends             = 0x00000008,  // Emit __extends
+        SuperInstance           = 0x00000010,  // Instance 'super' reference
+        SuperStatic             = 0x00000020,  // Static 'super' reference
+        ContextChecked          = 0x00000040,  // Contextual types have been assigned
 
         // Values for enum members have been computed, and any errors have been reported for them.
-        EnumValuesComputed  = 0x00000080,
-        EmitDecorate        = 0x00000100,
-        BlockScopedBindingInLoop = 0x00000200,
+        EnumValuesComputed      = 0x00000080,
+        EmitDecorate            = 0x00000100,  // Emit __extends
+        BlockScopedBindingInLoop= 0x00000200,
+        EmitDecoratedType       = 0x00000400,  // Emit the type of the decorator target as an argument in this parameter position
+        EmitDecoratedParamTypes = 0x00000800,  // Emit the parameter types of the decorator target as an argument in this parameter position
+        EmitDecoratedReturnType = 0x00001000,  // Emit the return type of the decorator target as an argument in this parameter position
+        AmbientDecorator        = 0x00002000,  // Decorator was marked ambient, do not emit to output
+        ConditionallyRemoved    = 0x00004000,  // Call should be ignored due to @conditional
     }
 
     export interface NodeLinks {
         resolvedType?: Type;              // Cached type of type node
         resolvedSignature?: Signature;    // Cached signature of signature node or call expression
         resolvedSymbol?: Symbol;          // Cached name resolution result
+        resolvedDecoratorMetadata?: DecoratorMetadata; // Resolved metadata for a decorator
         flags?: NodeCheckFlags;           // Set of flags specific to Node
         enumMemberValue?: number;         // Constant value of enum member
         isIllegalTypeReferenceInConstraint?: boolean; // Is type reference in constraint refers to the type parameter from the same list
@@ -1403,6 +1416,7 @@ module ts {
     // Intrinsic types (TypeFlags.Intrinsic)
     export interface IntrinsicType extends Type {
         intrinsicName: string;  // Name of intrinsic type
+        boxedName: string;      // Name of boxed constructor
     }
 
     // String literal types (TypeFlags.StringLiteral)
@@ -1505,6 +1519,59 @@ module ts {
         // It is optional because in contextual signature instantiation, nothing fails
     }
 
+    export interface DecoratorUsage {
+        ambient?: boolean;
+        targets?: number;
+    }
+
+    // DecoratorMetadata consists of the state information about an ambient decorator
+    export interface DecoratorMetadata {
+        symbol: Symbol;     // The symbol of the ambient decorator
+        arguments: any[];   // The arguments to the ambient decorator
+    }
+
+    export const enum DecoratorFlags {
+        // Flags from DecoratorTargets enum
+        ModuleDeclaration       = 0x00000001, // decorator can target a lexical module declaration (from DecoratorTargets enum)
+        ImportDeclaration       = 0x00000002, // decorator can target an import declaration (from DecoratorTargets enum)
+        ClassDeclaration        = 0x00000004, // decorator can target a class declaration (from DecoratorTargets enum)
+        InterfaceDeclaration    = 0x00000008, // decorator can target an interface declaration (from DecoratorTargets enum)
+        FunctionDeclaration     = 0x00000010, // decorator can target a function declaration (from DecoratorTargets enum)
+        EnumDeclaration         = 0x00000020, // decorator can target an enum declaration (from DecoratorTargets enum)
+        EnumMember              = 0x00000040, // decorator can target an enum member (from DecoratorTargets enum)
+        Constructor             = 0x00000080, // decorator can target a constructor (from DecoratorTargets enum)
+        PropertyDeclaration     = 0x00000100, // decorator can target a property declaration (from DecoratorTargets enum)
+        MethodDeclaration       = 0x00000200, // decorator can target a method declaration (from DecoratorTargets enum)
+        AccessorDeclaration     = 0x00000400, // decorator can target an accessor declaration (from DecoratorTargets enum)
+        ParameterDeclaration    = 0x00000800, // decorator can target a parameter declaration (from DecoratorTargets enum)
+        VariableDeclaration     = 0x00001000, // decorator can target a variable declaration (var, let, or const) (from DecoratorTargets enum)
+        AllTargets              = 0x00001fff, // decorator can target all targets (from DecoratorTargets enum)
+
+        // Additional flags
+        BuiltIn                 = 0x00010000, // built-in ambient decorator
+        UserDefinedAmbient      = 0x00020000, // user-provided ambient decorator
+
+        Ambient = BuiltIn | UserDefinedAmbient,
+
+        // Valid decorator targets (from DecoratorTargets enum)
+        DecoratorTargetsMask = AllTargets,
+
+        // Valid targets for an ES3 non-ambient decorator
+        ES3ValidTargetMask = ClassDeclaration | ParameterDeclaration,
+
+        // Valid targets for a non-ambient decorator
+        NonAmbientValidTargetMask = ClassDeclaration | PropertyDeclaration | MethodDeclaration | AccessorDeclaration | ParameterDeclaration,
+
+        // Valid targets for a non-ambient decorator that resolves to a type compatible with DecoratorFunction
+        DecoratorFunctionValidTargetMask = ClassDeclaration,
+
+        // Valid targets for a non-amient decorator that resolves to a type compatible with MemberDecoratorFunction
+        MemberDecoratorFunctionValidTargetsMask = PropertyDeclaration | MethodDeclaration | AccessorDeclaration,
+
+        // Valid targets for a non-ambient decorator that resolves to a type compatible with ParameterDecoratorFunction
+        ParameterDecoratorFunctionValidTargetsMask = ParameterDeclaration,
+    }
+
     export interface DiagnosticMessage {
         key: string;
         category: DiagnosticCategory;
@@ -1568,7 +1635,8 @@ module ts {
         version?: boolean;
         watch?: boolean;
         stripInternal?: boolean;
-        [option: string]: string | number | boolean;
+        define?: string[];
+        [option: string]: string | number | boolean | string[];
     }
 
     export const enum ModuleKind {
@@ -1607,6 +1675,7 @@ module ts {
         paramType?: DiagnosticMessage;      // The name to be used for a non-boolean option's parameter
         error?: DiagnosticMessage;          // The error given when the argument does not fit a customized 'type'
         experimental?: boolean;
+        multiple?: boolean;
     }
 
     export const enum CharacterCodes {
