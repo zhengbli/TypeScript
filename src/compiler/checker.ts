@@ -1870,8 +1870,8 @@ module ts {
                 }
             }
             else {
-                // For an array binding element the specified or inferred type of the parent must be assignable to any[]
-                if (!isTypeAssignableTo(parentType, anyArrayType)) {
+                // For an array binding element the specified or inferred type of the parent must be an array-like type
+                if (!isArrayLikeType(parentType)) {
                     error(pattern, Diagnostics.Type_0_is_not_an_array_type, typeToString(parentType));
                     return unknownType;
                 }
@@ -3566,7 +3566,7 @@ module ts {
                     return isContextSensitive((<ConditionalExpression>node).whenTrue) ||
                         isContextSensitive((<ConditionalExpression>node).whenFalse);
                 case SyntaxKind.BinaryExpression:
-                    return (<BinaryExpression>node).operator === SyntaxKind.BarBarToken &&
+                    return (<BinaryExpression>node).operatorToken.kind === SyntaxKind.BarBarToken &&
                     (isContextSensitive((<BinaryExpression>node).left) || isContextSensitive((<BinaryExpression>node).right));
                 case SyntaxKind.PropertyAssignment:
                     return isContextSensitive((<PropertyAssignment>node).initializer);
@@ -4347,6 +4347,11 @@ module ts {
             return type.flags & TypeFlags.Reference && (<TypeReference>type).target === globalArrayType;
         }
 
+        function isArrayLikeType(type: Type): boolean {
+            // A type is array-like if it is not the undefined or null type and if it is assignable to any[]
+            return !(type.flags & (TypeFlags.Undefined | TypeFlags.Null)) && isTypeAssignableTo(type, anyArrayType);
+        }
+
         function isTupleLikeType(type: Type): boolean {
             return !!getPropertyOfType(type, "0");
         }
@@ -4748,7 +4753,7 @@ module ts {
             return links.assignmentChecks[symbol.id] = isAssignedIn(node);
 
             function isAssignedInBinaryExpression(node: BinaryExpression) {
-                if (node.operator >= SyntaxKind.FirstAssignment && node.operator <= SyntaxKind.LastAssignment) {
+                if (node.operatorToken.kind >= SyntaxKind.FirstAssignment && node.operatorToken.kind <= SyntaxKind.LastAssignment) {
                     var n = node.left;
                     while (n.kind === SyntaxKind.ParenthesizedExpression) {
                         n = (<ParenthesizedExpression>n).expression;
@@ -4799,6 +4804,7 @@ module ts {
                     case SyntaxKind.WhileStatement:
                     case SyntaxKind.ForStatement:
                     case SyntaxKind.ForInStatement:
+                    case SyntaxKind.ForOfStatement:
                     case SyntaxKind.ReturnStatement:
                     case SyntaxKind.WithStatement:
                     case SyntaxKind.SwitchStatement:
@@ -4880,10 +4886,10 @@ module ts {
                         case SyntaxKind.BinaryExpression:
                             // In the right operand of an && or ||, narrow based on left operand
                             if (child === (<BinaryExpression>node).right) {
-                                if ((<BinaryExpression>node).operator === SyntaxKind.AmpersandAmpersandToken) {
+                                if ((<BinaryExpression>node).operatorToken.kind === SyntaxKind.AmpersandAmpersandToken) {
                                     narrowedType = narrowType(type, (<BinaryExpression>node).left, /*assumeTrue*/ true);
                                 }
-                                else if ((<BinaryExpression>node).operator === SyntaxKind.BarBarToken) {
+                                else if ((<BinaryExpression>node).operatorToken.kind === SyntaxKind.BarBarToken) {
                                     narrowedType = narrowType(type, (<BinaryExpression>node).left, /*assumeTrue*/ false);
                                 }
                             }
@@ -4921,7 +4927,7 @@ module ts {
                     return type;
                 }
                 var typeInfo = primitiveTypeInfo[right.text];
-                if (expr.operator === SyntaxKind.ExclamationEqualsEqualsToken) {
+                if (expr.operatorToken.kind === SyntaxKind.ExclamationEqualsEqualsToken) {
                     assumeTrue = !assumeTrue;
                 }
                 if (assumeTrue) {
@@ -5011,7 +5017,7 @@ module ts {
                     case SyntaxKind.ParenthesizedExpression:
                         return narrowType(type, (<ParenthesizedExpression>expr).expression, assumeTrue);
                     case SyntaxKind.BinaryExpression:
-                        var operator = (<BinaryExpression>expr).operator;
+                        var operator = (<BinaryExpression>expr).operatorToken.kind;
                         if (operator === SyntaxKind.EqualsEqualsEqualsToken || operator === SyntaxKind.ExclamationEqualsEqualsToken) {
                             return narrowTypeByEquality(type, <BinaryExpression>expr, assumeTrue);
                         }
@@ -5422,7 +5428,7 @@ module ts {
 
         function getContextualTypeForBinaryOperand(node: Expression): Type {
             var binaryExpression = <BinaryExpression>node.parent;
-            var operator = binaryExpression.operator;
+            var operator = binaryExpression.operatorToken.kind;
             if (operator >= SyntaxKind.FirstAssignment && operator <= SyntaxKind.LastAssignment) {
                 // In an assignment expression, the right operand is contextually typed by the type of the left operand.
                 if (node === binaryExpression.right) {
@@ -5672,7 +5678,7 @@ module ts {
         // an assignment target. Examples include 'a = xxx', '{ p: a } = xxx', '[{ p: a}] = xxx'.
         function isAssignmentTarget(node: Node): boolean {
             var parent = node.parent;
-            if (parent.kind === SyntaxKind.BinaryExpression && (<BinaryExpression>parent).operator === SyntaxKind.EqualsToken && (<BinaryExpression>parent).left === node) {
+            if (parent.kind === SyntaxKind.BinaryExpression && (<BinaryExpression>parent).operatorToken.kind === SyntaxKind.EqualsToken && (<BinaryExpression>parent).left === node) {
                 return true;
             }
             if (parent.kind === SyntaxKind.PropertyAssignment) {
@@ -5686,7 +5692,7 @@ module ts {
 
         function checkSpreadElementExpression(node: SpreadElementExpression, contextualMapper?: TypeMapper): Type {
             var type = checkExpressionCached(node.expression, contextualMapper);
-            if (!isTypeAssignableTo(type, anyArrayType)) {
+            if (!isArrayLikeType(type)) {
                 error(node.expression, Diagnostics.Type_0_is_not_an_array_type, typeToString(type));
                 return unknownType;
             }
@@ -7352,7 +7358,7 @@ module ts {
 
         function checkArrayLiteralAssignment(node: ArrayLiteralExpression, sourceType: Type, contextualMapper?: TypeMapper): Type {
             // TODOO(andersh): Allow iterable source type in ES6
-            if (!isTypeAssignableTo(sourceType, anyArrayType)) {
+            if (!isArrayLikeType(sourceType)) {
                 error(node, Diagnostics.Type_0_is_not_an_array_type, typeToString(sourceType));
                 return sourceType;
             }
@@ -7386,7 +7392,7 @@ module ts {
         }
 
         function checkDestructuringAssignment(target: Expression, sourceType: Type, contextualMapper?: TypeMapper): Type {
-            if (target.kind === SyntaxKind.BinaryExpression && (<BinaryExpression>target).operator === SyntaxKind.EqualsToken) {
+            if (target.kind === SyntaxKind.BinaryExpression && (<BinaryExpression>target).operatorToken.kind === SyntaxKind.EqualsToken) {
                 checkBinaryExpression(<BinaryExpression>target, contextualMapper);
                 target = (<BinaryExpression>target).left;
             }
@@ -7409,13 +7415,13 @@ module ts {
 
         function checkBinaryExpression(node: BinaryExpression, contextualMapper?: TypeMapper) {
             // Grammar checking
-            if (isLeftHandSideExpression(node.left) && isAssignmentOperator(node.operator)) {
+            if (isLeftHandSideExpression(node.left) && isAssignmentOperator(node.operatorToken.kind)) {
                 // ECMA 262 (Annex C) The identifier eval or arguments may not appear as the LeftHandSideExpression of an
                 // Assignment operator(11.13) or of a PostfixExpression(11.3)
                 checkGrammarEvalOrArgumentsInStrictMode(node, <Identifier>node.left);
             }
 
-            var operator = node.operator;
+            var operator = node.operatorToken.kind;
             if (operator === SyntaxKind.EqualsToken && (node.left.kind === SyntaxKind.ObjectLiteralExpression || node.left.kind === SyntaxKind.ArrayLiteralExpression)) {
                 return checkDestructuringAssignment(node.left, checkExpression(node.right, contextualMapper), contextualMapper);
             }
@@ -7456,8 +7462,8 @@ module ts {
                     // try and return them a helpful suggestion
                     if ((leftType.flags & TypeFlags.Boolean) &&
                         (rightType.flags & TypeFlags.Boolean) &&
-                        (suggestedOperator = getSuggestedBooleanOperator(node.operator)) !== undefined) {
-                        error(node, Diagnostics.The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead, tokenToString(node.operator), tokenToString(suggestedOperator));
+                        (suggestedOperator = getSuggestedBooleanOperator(node.operatorToken.kind)) !== undefined) {
+                        error(node, Diagnostics.The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead, tokenToString(node.operatorToken.kind), tokenToString(suggestedOperator));
                     }
                     else {
                         // otherwise just check each operand separately and report errors as normal 
@@ -7590,7 +7596,7 @@ module ts {
             }
 
             function reportOperatorError() {
-                error(node, Diagnostics.Operator_0_cannot_be_applied_to_types_1_and_2, tokenToString(node.operator), typeToString(leftType), typeToString(rightType));
+                error(node, Diagnostics.Operator_0_cannot_be_applied_to_types_1_and_2, tokenToString(node.operatorToken.kind), typeToString(leftType), typeToString(rightType));
             }
         }
 
@@ -8971,7 +8977,7 @@ module ts {
         function checkBlock(node: Block) {
             // Grammar checking for SyntaxKind.Block
             if (node.kind === SyntaxKind.Block) {
-                checkGrammarForStatementInAmbientContext(node);
+                checkGrammarStatementInAmbientContext(node);
             }
 
             forEach(node.statements, checkSourceElement);
@@ -9288,14 +9294,14 @@ module ts {
 
         function checkExpressionStatement(node: ExpressionStatement) {
             // Grammar checking
-            checkGrammarForStatementInAmbientContext(node)
+            checkGrammarStatementInAmbientContext(node)
 
             checkExpression(node.expression);
         }
 
         function checkIfStatement(node: IfStatement) {
             // Grammar checking
-            checkGrammarForStatementInAmbientContext(node);
+            checkGrammarStatementInAmbientContext(node);
 
             checkExpression(node.expression);
             checkSourceElement(node.thenStatement);
@@ -9304,7 +9310,7 @@ module ts {
 
         function checkDoStatement(node: DoStatement) {
             // Grammar checking
-            checkGrammarForStatementInAmbientContext(node);
+            checkGrammarStatementInAmbientContext(node);
 
             checkSourceElement(node.statement);
             checkExpression(node.expression);
@@ -9312,7 +9318,7 @@ module ts {
 
         function checkWhileStatement(node: WhileStatement) {
             // Grammar checking 
-            checkGrammarForStatementInAmbientContext(node);
+            checkGrammarStatementInAmbientContext(node);
 
             checkExpression(node.expression);
             checkSourceElement(node.statement);
@@ -9320,7 +9326,7 @@ module ts {
 
         function checkForStatement(node: ForStatement) {
             // Grammar checking
-            if (!checkGrammarForStatementInAmbientContext(node)) {
+            if (!checkGrammarStatementInAmbientContext(node)) {
                 if (node.initializer && node.initializer.kind == SyntaxKind.VariableDeclarationList) {
                     checkGrammarVariableDeclarationList(<VariableDeclarationList>node.initializer);
                 }
@@ -9342,23 +9348,14 @@ module ts {
 
         function checkForOfStatement(node: ForOfStatement) {
             // TODO: not yet implemented
-            if (!checkGrammarForStatementInAmbientContext(node)) {
-                checkGrammarForOfStatement(node);
-            }
+            checkGrammarForOfStatement(node);
+        }
+
         }
 
         function checkForInStatement(node: ForInStatement) {
             // Grammar checking 
-            if (!checkGrammarForStatementInAmbientContext(node)) {
-                if (node.initializer.kind === SyntaxKind.VariableDeclarationList) {
-                    var variableList = <VariableDeclarationList>node.initializer;
-                    if (!checkGrammarVariableDeclarationList(variableList)) {
-                        if (variableList.declarations.length > 1) {
-                            grammarErrorOnFirstToken(variableList.declarations[1], Diagnostics.Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement);
-                        }
-                    }
-                }
-            }
+            checkGrammarForInOrForOfStatement(node);
 
             // TypeScript 1.0 spec  (April 2014): 5.4
             // In a 'for-in' statement of the form
@@ -9370,9 +9367,6 @@ module ts {
                 if (variableDeclarationList.declarations.length >= 1) {
                     var decl = variableDeclarationList.declarations[0];
                     checkVariableDeclaration(decl);
-                    if (decl.type) {
-                        error(decl, Diagnostics.The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation);
-                    }
                 }
             }
             else {
@@ -9403,7 +9397,7 @@ module ts {
 
         function checkBreakOrContinueStatement(node: BreakOrContinueStatement) {
             // Grammar checking
-            checkGrammarForStatementInAmbientContext(node) || checkGrammarBreakOrContinueStatement(node);
+            checkGrammarStatementInAmbientContext(node) || checkGrammarBreakOrContinueStatement(node);
 
             // TODO: Check that target label is valid
         }
@@ -9414,7 +9408,7 @@ module ts {
 
         function checkReturnStatement(node: ReturnStatement) {
             // Grammar checking
-            if (!checkGrammarForStatementInAmbientContext(node)) {
+            if (!checkGrammarStatementInAmbientContext(node)) {
                 var functionBlock = getContainingFunction(node);
                 if (!functionBlock) {
                     grammarErrorOnFirstToken(node, Diagnostics.A_return_statement_can_only_be_used_within_a_function_body);
@@ -9445,7 +9439,7 @@ module ts {
 
         function checkWithStatement(node: WithStatement) {
             // Grammar checking for withStatement
-            if (!checkGrammarForStatementInAmbientContext(node)) {
+            if (!checkGrammarStatementInAmbientContext(node)) {
                 if (node.parserContextFlags & ParserContextFlags.StrictMode) {
                     grammarErrorOnFirstToken(node, Diagnostics.with_statements_are_not_allowed_in_strict_mode);
                 }
@@ -9457,7 +9451,7 @@ module ts {
 
         function checkSwitchStatement(node: SwitchStatement) {
             // Grammar checking
-            checkGrammarForStatementInAmbientContext(node);
+            checkGrammarStatementInAmbientContext(node);
 
             var firstDefaultClause: CaseOrDefaultClause;
             var hasDuplicateDefaultClause = false;
@@ -9494,7 +9488,7 @@ module ts {
 
         function checkLabeledStatement(node: LabeledStatement) {
             // Grammar checking
-            if (!checkGrammarForStatementInAmbientContext(node)) {
+            if (!checkGrammarStatementInAmbientContext(node)) {
                 var current = node.parent;
                 while (current) {
                     if (isAnyFunction(current)) {
@@ -9515,7 +9509,7 @@ module ts {
 
         function checkThrowStatement(node: ThrowStatement) {
             // Grammar checking
-            if (!checkGrammarForStatementInAmbientContext(node)) {
+            if (!checkGrammarStatementInAmbientContext(node)) {
                 if (node.expression === undefined) {
                     grammarErrorAfterFirstToken(node, Diagnostics.Line_break_not_permitted_here);
                 }
@@ -9528,7 +9522,7 @@ module ts {
 
         function checkTryStatement(node: TryStatement) {
             // Grammar checking
-            checkGrammarForStatementInAmbientContext(node);
+            checkGrammarStatementInAmbientContext(node);
 
             checkBlock(node.tryBlock);
             var catchClause = node.catchClause;
@@ -10002,7 +9996,7 @@ module ts {
                         if (right === undefined) {
                             return undefined;
                         }
-                        switch ((<BinaryExpression>e).operator) {
+                            switch ((<BinaryExpression>e).operatorToken.kind) {
                             case SyntaxKind.BarToken: return left | right;
                             case SyntaxKind.AmpersandToken: return left & right;
                             case SyntaxKind.GreaterThanGreaterThanToken: return left >> right;
@@ -10542,10 +10536,10 @@ module ts {
                 case SyntaxKind.ExportAssignment:
                     return checkExportAssignment(<ExportAssignment>node);
                 case SyntaxKind.EmptyStatement:
-                    checkGrammarForStatementInAmbientContext(node);
+                    checkGrammarStatementInAmbientContext(node);
                     return;
                 case SyntaxKind.DebuggerStatement:
-                    checkGrammarForStatementInAmbientContext(node);
+                    checkGrammarStatementInAmbientContext(node);
                     return;
             }
         }
@@ -10617,6 +10611,7 @@ module ts {
                 case SyntaxKind.WhileStatement:
                 case SyntaxKind.ForStatement:
                 case SyntaxKind.ForInStatement:
+                case SyntaxKind.ForOfStatement:
                 case SyntaxKind.ContinueStatement:
                 case SyntaxKind.BreakStatement:
                 case SyntaxKind.ReturnStatement:
@@ -12049,10 +12044,7 @@ module ts {
             }
 
             var computedPropertyName = <ComputedPropertyName>node;
-            if (languageVersion < ScriptTarget.ES6) {
-                return grammarErrorOnNode(node, Diagnostics.Computed_property_names_are_only_available_when_targeting_ECMAScript_6_and_higher);
-            }
-            else if (computedPropertyName.expression.kind === SyntaxKind.BinaryExpression && (<BinaryExpression>computedPropertyName.expression).operator === SyntaxKind.CommaToken) {
+            if (computedPropertyName.expression.kind === SyntaxKind.BinaryExpression && (<BinaryExpression>computedPropertyName.expression).operatorToken.kind === SyntaxKind.CommaToken) {
                 return grammarErrorOnNode(computedPropertyName.expression, Diagnostics.A_comma_expression_is_not_allowed_in_a_computed_property_name);
             }
         }
@@ -12147,10 +12139,47 @@ module ts {
             }
         }
 
-        function checkGrammarForOfStatement(forOfStatement: ForOfStatement): boolean {
-            if (languageVersion < ScriptTarget.ES6) {
-                return grammarErrorOnFirstToken(forOfStatement, Diagnostics.For_of_statements_are_only_available_when_targeting_ECMAScript_6_or_higher);
+        function checkGrammarForInOrForOfStatement(forInOrOfStatement: ForInStatement | ForOfStatement): boolean {
+            if (checkGrammarStatementInAmbientContext(forInOrOfStatement)) {
+                return true;
             }
+
+            if (forInOrOfStatement.initializer.kind === SyntaxKind.VariableDeclarationList) {
+                var variableList = <VariableDeclarationList>forInOrOfStatement.initializer;
+                if (!checkGrammarVariableDeclarationList(variableList)) {
+                    if (variableList.declarations.length > 1) {
+                        var diagnostic = forInOrOfStatement.kind === SyntaxKind.ForInStatement
+                            ? Diagnostics.Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement
+                            : Diagnostics.Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement;
+                        return grammarErrorOnFirstToken(variableList.declarations[1], diagnostic);
+                    }
+                    var firstDeclaration = variableList.declarations[0];
+                    if (firstDeclaration.initializer) {
+                        var diagnostic = forInOrOfStatement.kind === SyntaxKind.ForInStatement
+                            ? Diagnostics.The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer
+                            : Diagnostics.The_variable_declaration_of_a_for_of_statement_cannot_have_an_initializer;
+                        return grammarErrorOnNode(firstDeclaration.name, diagnostic);
+                    }
+                    if (firstDeclaration.type) {
+                        var diagnostic = forInOrOfStatement.kind === SyntaxKind.ForInStatement
+                            ? Diagnostics.The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation
+                            : Diagnostics.The_left_hand_side_of_a_for_of_statement_cannot_use_a_type_annotation;
+                        return grammarErrorOnNode(firstDeclaration, diagnostic);
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        function checkGrammarForOfStatement(forOfStatement: ForOfStatement): boolean {
+            // Temporarily disallow for-of statements until type check work is complete.
+            return grammarErrorOnFirstToken(forOfStatement, Diagnostics.for_of_statements_are_not_currently_supported);
+            if (languageVersion < ScriptTarget.ES6) {
+                return grammarErrorOnFirstToken(forOfStatement, Diagnostics.for_of_statements_are_only_available_when_targeting_ECMAScript_6_or_higher);
+            }
+
+            return checkGrammarForInOrForOfStatement(forOfStatement);
         }
 
         function checkGrammarAccessor(accessor: MethodDeclaration): boolean {
@@ -12245,6 +12274,7 @@ module ts {
             switch (node.kind) {
                 case SyntaxKind.ForStatement:
                 case SyntaxKind.ForInStatement:
+                case SyntaxKind.ForOfStatement:
                 case SyntaxKind.DoStatement:
                 case SyntaxKind.WhileStatement:
                     return true;
@@ -12392,6 +12422,7 @@ module ts {
                 case SyntaxKind.WithStatement:
                 case SyntaxKind.ForStatement:
                 case SyntaxKind.ForInStatement:
+                case SyntaxKind.ForOfStatement:
                     return false;
                 case SyntaxKind.LabeledStatement:
                     return allowLetAndConstDeclarations(parent.parent);
@@ -12584,7 +12615,7 @@ module ts {
             return isInAmbientContext(node) && checkGrammarTopLevelElementsForRequiredDeclareModifier(node);
         }
 
-        function checkGrammarForStatementInAmbientContext(node: Node): boolean {
+        function checkGrammarStatementInAmbientContext(node: Node): boolean {
             if (isInAmbientContext(node)) {
                 // An accessors is already reported about the ambient context
                 if (isAccessor(node.parent.kind)) {

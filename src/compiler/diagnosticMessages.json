@@ -579,41 +579,54 @@
         "category": "Error",
         "code": 1187
     },
-    "An import declaration cannot have modifiers.": {
+    "Only a single variable declaration is allowed in a 'for...of' statement.": {
         "category": "Error",
         "code": 1188
     },
-    "External module '{0}' has no default export or export assignment.": {
+    "The variable declaration of a 'for...in' statement cannot have an initializer.": {
         "category": "Error",
         "code": 1189
     },
-    "An export declaration cannot have modifiers.": {
+    "The variable declaration of a 'for...of' statement cannot have an initializer.": {
         "category": "Error",
         "code": 1190
     },
-    "Export declarations are not permitted in an internal module.": {
+    "An import declaration cannot have modifiers.": {
         "category": "Error",
         "code": 1191
     },
-    "Decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
+    "External module '{0}' has no default export or export assignment.": {
         "category": "Error",
         "code": 1192
     },
-    "'{0}' is obsolete.":  {
+    "An export declaration cannot have modifiers.": {
+        "category": "Error",
+        "code": 1193
+    },
+    "Export declarations are not permitted in an internal module.": {
         "category": "Error",
         "code": 1194
     },
-    "'{0}' is obsolete: '{1}'": {
+    "Decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
         "category": "Error",
         "code": 1195
     },
-    "Decorators cannot appear here.": {
+    "'{0}' is obsolete.":  {
         "category": "Error",
         "code": 1196
     },
-    "Non-ambient decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
+    "'{0}' is obsolete: '{1}'": {
         "category": "Error",
         "code": 1197
+    },
+    
+    "Decorators cannot appear here.": {
+        "category": "Error",
+        "code": 1198
+    },
+    "Non-ambient decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
+        "category": "Error",
+        "code": 1199
     },
     "Decorator '{0}' is not valid on this declaration type. It is only valid on '{1}' declarations.": {
         "category": "Error",
@@ -630,14 +643,6 @@
     "Argument to ambient decorator must be constant expression.": {
         "category": "Error",
         "code": 1201
-    },
-    "'{0}' is obsolete.":  {
-        "category": "Error",
-        "code": 1202
-    },
-    "'{0}' is obsolete: '{1}'": {
-        "category": "Error",
-        "code": 1203
     },
 
     "Duplicate identifier '{0}'.": {
@@ -1320,15 +1325,26 @@
         "category": "Error",
         "code": 2481
     },
-    "Export declaration conflicts with exported declaration of '{0}'": {
+    "'for...of' statements are only available when targeting ECMAScript 6 or higher.": {
         "category": "Error",
         "code": 2482
     },
-    "Cannot find global decorator function '{0}'.": {
+    "The left-hand side of a 'for...of' statement cannot use a type annotation.": {
         "category": "Error",
         "code": 2483
     },
-
+    "Export declaration conflicts with exported declaration of '{0}'": {
+        "category": "Error",
+        "code": 2484
+    },
+    "Export declaration conflicts with exported declaration of '{0}'": {
+        "category": "Error",
+        "code": 2485
+    },
+    "Cannot find global decorator function '{0}'.": {
+        "category": "Error",
+        "code": 2486
+    },
     "Import declaration '{0}' is using private name '{1}'.": {
         "category": "Error",
         "code": 4000
@@ -1921,5 +1937,9 @@
     "The 'arguments' object cannot be referenced in an arrow function. Consider using a standard function expression.": {
         "category": "Error",
         "code": 9002
+    },
+    "'for...of' statements are not currently supported.": {
+        "category": "Error",
+        "code": 9003
     }
 }

@@ -145,7 +145,7 @@ module ts {
         StringKeyword,
         SymbolKeyword,
         TypeKeyword,
-        OfKeyword,
+        OfKeyword, // LastKeyword and LastToken
         // Parse tree nodes
 
         // Names
@@ -282,7 +282,7 @@ module ts {
         FirstPunctuation = OpenBraceToken,
         LastPunctuation = CaretEqualsToken,
         FirstToken = Unknown,
-        LastToken = TypeKeyword,
+        LastToken = OfKeyword,
         FirstTriviaToken = SingleLineCommentTrivia,
         LastTriviaToken = ConflictMarkerTrivia,
         FirstLiteralToken = NumericLiteral,
@@ -644,7 +644,7 @@ module ts {
 
     export interface BinaryExpression extends Expression {
         left: Expression;
-        operator: SyntaxKind;
+        operatorToken: Node;
         right: Expression;
     }
 
@@ -1792,6 +1792,7 @@ module ts {
         equals = 0x3D,                // =
         exclamation = 0x21,           // !
         greaterThan = 0x3E,           // >
+        hash = 0x23,                  // #
         lessThan = 0x3C,              // <
         minus = 0x2D,                 // -
         openBrace = 0x7B,             // {

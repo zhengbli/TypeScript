@@ -228,7 +228,7 @@ module ts {
         return false;
     }
 
-    function isUnicodeIdentifierStart(code: number, languageVersion: ScriptTarget) {
+    /* @internal */ export function isUnicodeIdentifierStart(code: number, languageVersion: ScriptTarget) {
         return languageVersion >= ScriptTarget.ES5 ?
             lookupInUnicodeMap(code, unicodeES5IdentifierStart) :
             lookupInUnicodeMap(code, unicodeES3IdentifierStart);
@@ -283,13 +283,13 @@ module ts {
         return result;
     }
 
-    export function getPositionFromLineAndCharacter(sourceFile: SourceFile, line: number, character: number): number {
-        return computePositionFromLineAndCharacter(getLineStarts(sourceFile), line, character);
+    export function getPositionOfLineAndCharacter(sourceFile: SourceFile, line: number, character: number): number {
+        return computePositionOfLineAndCharacter(getLineStarts(sourceFile), line, character);
     }
 
-    export function computePositionFromLineAndCharacter(lineStarts: number[], line: number, character: number): number {
-        Debug.assert(line > 0 && line <= lineStarts.length);
-        return lineStarts[line - 1] + character - 1;
+    export function computePositionOfLineAndCharacter(lineStarts: number[], line: number, character: number): number {
+        Debug.assert(line >= 0 && line < lineStarts.length);
+        return lineStarts[line] + character;
     }
 
     export function getLineStarts(sourceFile: SourceFile): number[] {
@@ -303,11 +303,11 @@ module ts {
             // the binary search returns the negative value of the next line start
             // e.g. if the line starts at [5, 10, 23, 80] and the position requested was 20
             // then the search will return -2
-            lineNumber = (~lineNumber) - 1;
+            lineNumber = ~lineNumber - 1;
         }
         return {
-            line: lineNumber + 1,
-            character: position - lineStarts[lineNumber] + 1
+            line: lineNumber,
+            character: position - lineStarts[lineNumber]
         };
     }
 

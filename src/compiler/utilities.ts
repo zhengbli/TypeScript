@@ -105,11 +105,16 @@ module ts {
         return <SourceFile>node;
     }
 
+    export function getStartPositionOfLine(line: number, sourceFile: SourceFile): number {
+        Debug.assert(line >= 0);
+        return getLineStarts(sourceFile)[line];
+    }
+
     // This is a useful function for debugging purposes.
     export function nodePosToString(node: Node): string {
         var file = getSourceFileOfNode(node);
         var loc = getLineAndCharacterOfPosition(file, node.pos);
-        return file.fileName + "(" + loc.line + "," + loc.character + ")";
+        return `${ file.fileName }(${ loc.line + 1 },${ loc.character + 1 })`;
     }
 
     export function getStartPosOfNode(node: Node): number {
@@ -349,6 +354,7 @@ module ts {
                 case SyntaxKind.WhileStatement:
                 case SyntaxKind.ForStatement:
                 case SyntaxKind.ForInStatement:
+                case SyntaxKind.ForOfStatement:
                 case SyntaxKind.WithStatement:
                 case SyntaxKind.SwitchStatement:
                 case SyntaxKind.CaseClause:
@@ -577,7 +583,8 @@ module ts {
                             forStatement.condition === node ||
                             forStatement.iterator === node;
                     case SyntaxKind.ForInStatement:
-                        var forInStatement = <ForInStatement>parent;
+                    case SyntaxKind.ForOfStatement:
+                        var forInStatement = <ForInStatement | ForOfStatement>parent;
                         return (forInStatement.initializer === node && forInStatement.initializer.kind !== SyntaxKind.VariableDeclarationList) ||
                             forInStatement.expression === node;
                     case SyntaxKind.TypeAssertionExpression:
@@ -734,6 +741,7 @@ module ts {
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.EmptyStatement:
             case SyntaxKind.ForInStatement:
+            case SyntaxKind.ForOfStatement:
             case SyntaxKind.ForStatement:
             case SyntaxKind.IfStatement:
             case SyntaxKind.LabeledStatement:
