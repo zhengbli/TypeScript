@@ -192,6 +192,7 @@ declare module "typescript" {
         VarKeyword = 98,
         VoidKeyword = 99,
         WhileKeyword = 100,
+        WithKeyword = 101,
         AsKeyword = 102,
         FromKeyword = 103,
         ImplementsKeyword = 104,
@@ -213,114 +214,123 @@ declare module "typescript" {
         NumberKeyword = 120,
         SetKeyword = 121,
         StringKeyword = 122,
-        SymbolKeyword = 122,
-        TypeKeyword = 123,
-        OfKeyword = 124,
-        QualifiedName = 125,
-        ComputedPropertyName = 126,
-        TypeParameter = 127,
-        Parameter = 128,
-        PropertySignature = 129,
-        PropertyDeclaration = 130,
-        MethodSignature = 131,
-        MethodDeclaration = 132,
-        Constructor = 133,
-        GetAccessor = 134,
-        SetAccessor = 135,
-        CallSignature = 136,
-        ConstructSignature = 137,
-        IndexSignature = 138,
-        TypeReference = 139,
-        FunctionType = 140,
-        ConstructorType = 141,
-        TypeQuery = 142,
-        TypeLiteral = 143,
-        ArrayType = 144,
-        TupleType = 145,
-        UnionType = 146,
-        ParenthesizedType = 147,
-        ObjectBindingPattern = 148,
-        ArrayBindingPattern = 149,
-        BindingElement = 150,
-        ArrayLiteralExpression = 151,
-        ObjectLiteralExpression = 152,
-        PropertyAccessExpression = 153,
-        ElementAccessExpression = 154,
-        CallExpression = 155,
-        NewExpression = 156,
-        TaggedTemplateExpression = 157,
-        TypeAssertionExpression = 158,
-        ParenthesizedExpression = 159,
-        FunctionExpression = 160,
-        ArrowFunction = 161,
-        DeleteExpression = 162,
-        TypeOfExpression = 163,
-        VoidExpression = 164,
-        PrefixUnaryExpression = 165,
-        PostfixUnaryExpression = 166,
-        BinaryExpression = 167,
-        ConditionalExpression = 168,
-        TemplateExpression = 169,
-        YieldExpression = 170,
-        SpreadElementExpression = 171,
-        OmittedExpression = 172,
-        TemplateSpan = 173,
-        Block = 174,
-        VariableStatement = 175,
-        EmptyStatement = 176,
-        ExpressionStatement = 177,
-        IfStatement = 178,
-        DoStatement = 179,
-        WhileStatement = 180,
-        ForStatement = 181,
-        ForInStatement = 182,
-        ForOfStatement = 183,
-        ContinueStatement = 184,
-        BreakStatement = 185,
-        ReturnStatement = 186,
-        WithStatement = 187,
-        SwitchStatement = 188,
-        LabeledStatement = 189,
-        ThrowStatement = 190,
-        TryStatement = 191,
-        DebuggerStatement = 192,
-        VariableDeclaration = 193,
-        VariableDeclarationList = 194,
-        FunctionDeclaration = 195,
-        ClassDeclaration = 196,
-        InterfaceDeclaration = 197,
-        TypeAliasDeclaration = 198,
-        EnumDeclaration = 199,
-        ModuleDeclaration = 200,
-        ModuleBlock = 201,
-        ImportEqualsDeclaration = 202,
-        ImportDeclaration = 203,
-        ImportClause = 204,
-        NamespaceImport = 205,
-        NamedImports = 206,
-        ImportSpecifier = 207,
-        ExportAssignment = 208,
-        ExportDeclaration = 209,
-        NamedExports = 210,
-        ExportSpecifier = 211,
-        ExternalModuleReference = 212,
-        CaseClause = 213,
-        DefaultClause = 214,
-        HeritageClause = 215,
-        CatchClause = 216,
-        PropertyAssignment = 217,
-        ShorthandPropertyAssignment = 218,
-        EnumMember = 219,
-        SourceFile = 220,
-        SyntaxList = 221,
-        Count = 222,
-        LastKeyword = 124,
-        FirstTypeNode = 139,
-        LastTypeNode = 147,
+        SymbolKeyword = 123,
+        TypeKeyword = 124,
+        OfKeyword = 125,
+        QualifiedName = 126,
+        ComputedPropertyName = 127,
+        TypeParameter = 128,
+        Parameter = 129,
+        Decorator = 130,
+        PropertySignature = 131,
+        PropertyDeclaration = 132,
+        MethodSignature = 133,
+        MethodDeclaration = 134,
+        Constructor = 135,
+        GetAccessor = 136,
+        SetAccessor = 137,
+        CallSignature = 138,
+        ConstructSignature = 139,
+        IndexSignature = 140,
+        TypeReference = 141,
+        FunctionType = 142,
+        ConstructorType = 143,
+        TypeQuery = 144,
+        TypeLiteral = 145,
+        ArrayType = 146,
+        TupleType = 147,
+        UnionType = 148,
+        ParenthesizedType = 149,
+        ObjectBindingPattern = 150,
+        ArrayBindingPattern = 151,
+        BindingElement = 152,
+        ArrayLiteralExpression = 153,
+        ObjectLiteralExpression = 154,
+        PropertyAccessExpression = 155,
+        ElementAccessExpression = 156,
+        CallExpression = 157,
+        NewExpression = 158,
+        TaggedTemplateExpression = 159,
+        TypeAssertionExpression = 160,
+        ParenthesizedExpression = 161,
+        FunctionExpression = 162,
+        ArrowFunction = 163,
+        DeleteExpression = 164,
+        TypeOfExpression = 165,
+        VoidExpression = 166,
+        PrefixUnaryExpression = 167,
+        PostfixUnaryExpression = 168,
+        BinaryExpression = 169,
+        ConditionalExpression = 170,
+        TemplateExpression = 171,
+        YieldExpression = 172,
+        SpreadElementExpression = 173,
+        OmittedExpression = 174,
+        TemplateSpan = 175,
+        Block = 176,
+        VariableStatement = 177,
+        EmptyStatement = 178,
+        ExpressionStatement = 179,
+        IfStatement = 180,
+        DoStatement = 181,
+        WhileStatement = 182,
+        ForStatement = 183,
+        ForInStatement = 184,
+        ForOfStatement = 185,
+        ContinueStatement = 186,
+        BreakStatement = 187,
+        ReturnStatement = 188,
+        WithStatement = 189,
+        SwitchStatement = 190,
+        LabeledStatement = 191,
+        ThrowStatement = 192,
+        TryStatement = 193,
+        DebuggerStatement = 194,
+        VariableDeclaration = 195,
+        VariableDeclarationList = 196,
+        FunctionDeclaration = 197,
+        ClassDeclaration = 198,
+        InterfaceDeclaration = 199,
+        TypeAliasDeclaration = 200,
+        EnumDeclaration = 201,
+        ModuleDeclaration = 202,
+        ModuleBlock = 203,
+        ImportEqualsDeclaration = 204,
+        ImportDeclaration = 205,
+        ImportClause = 206,
+        NamespaceImport = 207,
+        NamedImports = 208,
+        ImportSpecifier = 209,
+        ExportAssignment = 210,
+        ExportDeclaration = 211,
+        NamedExports = 212,
+        ExportSpecifier = 213,
+        IncompleteDeclaration = 214,
+        ExternalModuleReference = 215,
+        CaseClause = 216,
+        DefaultClause = 217,
+        HeritageClause = 218,
+        CatchClause = 219,
+        PropertyAssignment = 220,
+        ShorthandPropertyAssignment = 221,
+        EnumMember = 222,
+        SourceFile = 223,
+        SyntaxList = 224,
+        Count = 225,
+        FirstAssignment = 53,
+        LastAssignment = 64,
+        FirstReservedWord = 66,
+        LastReservedWord = 101,
+        FirstKeyword = 66,
+        LastKeyword = 125,
+        FirstFutureReservedWord = 104,
+        LastFutureReservedWord = 112,
+        FirstTypeNode = 141,
+        LastTypeNode = 149,
         FirstPunctuation = 14,
         LastPunctuation = 64,
         FirstToken = 0,
-        LastToken = 124,
+        LastToken = 125,
         FirstTriviaToken = 2,
         LastTriviaToken = 6,
         FirstLiteralToken = 7,
@@ -329,7 +339,7 @@ declare module "typescript" {
         LastTemplateToken = 13,
         FirstBinaryOperator = 24,
         LastBinaryOperator = 64,
-        FirstNode = 125,
+        FirstNode = 126,
     }
     const enum NodeFlags {
         Export = 1,
@@ -368,6 +378,7 @@ declare module "typescript" {
         kind: SyntaxKind;
         flags: NodeFlags;
         parserContextFlags?: ParserContextFlags;
+        decorators?: NodeArray<Decorator>;
         modifiers?: ModifiersArray;
         id?: number;
         parent?: Node;
@@ -972,7 +983,11 @@ declare module "typescript" {
         isEntityNameVisible(entityName: EntityName, enclosingDeclaration: Node): SymbolVisibilityResult;
         getConstantValue(node: EnumMember | PropertyAccessExpression | ElementAccessExpression): number;
         isUnknownIdentifier(location: Node, name: string): boolean;
-        getBlockScopedVariableId(node: Identifier): number;
+        getResolvedSignature(node: CallLikeExpression): Signature;
+        serializeTypeOfNode(node: Node): string;
+        serializeParameterTypesOfNode(node: Node): string[];
+        serializeReturnTypeOfNode(node: Node): string;
+        getMetadataForSymbol(symbol: Symbol): DecoratorMetadata[];
     }
     const enum SymbolFlags {
         FunctionScopedVariable = 1,
@@ -1062,6 +1077,11 @@ declare module "typescript" {
         exportAssignmentSymbol?: Symbol;
         unionType?: UnionType;
         resolvedExports?: SymbolTable;
+        decoratorMetadata?: DecoratorMetadata[];
+        decoratorUsage?: DecoratorUsageMetadata;
+        obsolete?: ObsoleteMetadata;
+        conditionalSymbols?: string[];
+        conditionallyRemoved?: boolean;
     }
     interface TransientSymbol extends Symbol, SymbolLinks {
     }
@@ -1079,11 +1099,17 @@ declare module "typescript" {
         EnumValuesComputed = 128,
         EmitDecorate = 256,
         BlockScopedBindingInLoop = 512,
+        EmitDecoratedType = 512,
+        EmitDecoratedParamTypes = 1024,
+        EmitDecoratedReturnType = 2048,
+        AmbientDecorator = 4096,
+        ConditionallyRemoved = 8192,
     }
     interface NodeLinks {
         resolvedType?: Type;
         resolvedSignature?: Signature;
         resolvedSymbol?: Symbol;
+        resolvedDecoratorMetadata?: DecoratorMetadata;
         flags?: NodeCheckFlags;
         enumMemberValue?: number;
         isIllegalTypeReferenceInConstraint?: boolean;
@@ -1209,6 +1235,43 @@ declare module "typescript" {
         inferredTypes: Type[];
         failedTypeParameterIndex?: number;
     }
+    interface DecoratorUsageMetadata {
+        ambient?: boolean;
+        targets?: number;
+    }
+    interface ObsoleteMetadata {
+        obsolete?: boolean;
+        message?: string;
+    }
+    interface DecoratorMetadata {
+        symbol: Symbol;
+        arguments: any[];
+    }
+    const enum DecoratorFlags {
+        ModuleDeclaration = 1,
+        ImportDeclaration = 2,
+        ClassDeclaration = 4,
+        InterfaceDeclaration = 8,
+        FunctionDeclaration = 16,
+        EnumDeclaration = 32,
+        EnumMember = 64,
+        Constructor = 128,
+        PropertyDeclaration = 256,
+        MethodDeclaration = 512,
+        AccessorDeclaration = 1024,
+        ParameterDeclaration = 2048,
+        VariableDeclaration = 4096,
+        AllTargets = 8191,
+        BuiltIn = 65536,
+        UserDefinedAmbient = 131072,
+        Ambient = 196608,
+        DecoratorTargetsMask = 8191,
+        ES3ValidTargetMask = 2052,
+        NonAmbientValidTargetMask = 3844,
+        DecoratorFunctionValidTargetMask = 4,
+        MemberDecoratorFunctionValidTargetsMask = 1792,
+        ParameterDecoratorFunctionValidTargetsMask = 2048,
+    }
     interface DiagnosticMessage {
         key: string;
         category: DiagnosticCategory;
@@ -1264,7 +1327,8 @@ declare module "typescript" {
         version?: boolean;
         watch?: boolean;
         stripInternal?: boolean;
-        [option: string]: string | number | boolean;
+        define?: string[];
+        [option: string]: string | number | boolean | string[];
     }
     const enum ModuleKind {
         None = 0,
@@ -1295,6 +1359,7 @@ declare module "typescript" {
         paramType?: DiagnosticMessage;
         error?: DiagnosticMessage;
         experimental?: boolean;
+        multiple?: boolean;
     }
     const enum CharacterCodes {
         nullCharacter = 0,

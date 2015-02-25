@@ -607,42 +607,49 @@
         "category": "Error",
         "code": 1194
     },
-    "Decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
+    "Decorators cannot appear here.": {
         "category": "Error",
         "code": 1195
     },
-    "'{0}' is obsolete.":  {
+    "Non-ambient decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
         "category": "Error",
         "code": 1196
     },
-    "'{0}' is obsolete: '{1}'": {
+    "Decorator '{0}' is not valid on this declaration type. It is only valid on '{1}' declarations.": {
         "category": "Error",
         "code": 1197
     },
-    
-    "Decorators cannot appear here.": {
-        "category": "Error",
-        "code": 1198
-    },
-    "Non-ambient decorators are only supported on class members when targeting ECMAScript 5 or higher.": {
-        "category": "Error",
-        "code": 1199
-    },
-    "Decorator '{0}' is not valid on this declaration type. It is only valid on '{1}' declarations.": {
-        "category": "Error",
-        "code": 1198
-    },
-    "Decorator '{0}' is not valid on this declaration type.": {
-        "category": "Error",
-        "code": 1199
-    },
     "Decorator is not valid on this declaration type.": {
         "category": "Error",
-        "code": 1200
+        "code": 1199
     },
     "Argument to ambient decorator must be constant expression.": {
         "category": "Error",
+        "code": 1200
+    },
+    "'{0}' decorator cannot be used when '{1}' is already specified.": {
+        "category": "Error",
         "code": 1201
+    },
+    "'{0}' decorator already specified.": {
+        "category": "Error",
+        "code": 1202
+    },
+    "Decorators may not change the type of a member.": {
+        "category": "Error",
+        "code": 1203
+    },
+    "Decorators may not change the type of a class.": {
+        "category": "Error",
+        "code": 1204
+    },
+    "'{0}' is obsolete.":  {
+        "category": "Error",
+        "code": 1205
+    },
+    "'{0}' is obsolete: '{1}'": {
+        "category": "Error",
+        "code": 1206
     },
 
     "Duplicate identifier '{0}'.": {

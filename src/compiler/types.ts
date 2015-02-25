@@ -360,14 +360,14 @@ module ts {
         // Specific context the parser was in when this node was created.  Normally undefined. 
         // Only set when the parser was in some interesting context (like async/yield).
         parserContextFlags?: ParserContextFlags;
-        modifiers?: ModifiersArray;   // Array of modifiers
-        id?: number;                  // Unique id (used to look up NodeLinks)
-        parent?: Node;                // Parent node (initialized by binding)
-        symbol?: Symbol;              // Symbol declared by node (initialized by binding)
-        locals?: SymbolTable;         // Locals associated with node (initialized by binding)
-        nextContainer?: Node;         // Next container in declaration order (initialized by binding)
-        localSymbol?: Symbol;         // Local symbol declared by node (initialized by binding only for exported nodes)
         decorators?: NodeArray<Decorator>;  // Array of decorators
+        modifiers?: ModifiersArray;         // Array of modifiers
+        id?: number;                        // Unique id (used to look up NodeLinks)
+        parent?: Node;                      // Parent node (initialized by binding)
+        symbol?: Symbol;                    // Symbol declared by node (initialized by binding)
+        locals?: SymbolTable;               // Locals associated with node (initialized by binding)
+        nextContainer?: Node;               // Next container in declaration order (initialized by binding)
+        localSymbol?: Symbol;               // Local symbol declared by node (initialized by binding only for exported nodes)
     }
 
     export interface NodeArray<T> extends Array<T>, TextRange {
@@ -1219,9 +1219,9 @@ module ts {
         isUnknownIdentifier(location: Node, name: string): boolean;
         getBlockScopedVariableId(node: Identifier): number;
         getResolvedSignature(node: CallLikeExpression): Signature;
-        serializeTypeOfDeclaration(node: ClassDeclaration | FunctionLikeDeclaration | PropertyDeclaration | ParameterDeclaration): string;
-        serializeParameterTypesOfDeclaration(node: ClassDeclaration | FunctionLikeDeclaration): string[];
-        serializeReturnTypeOfDeclaration(node: ClassDeclaration | FunctionLikeDeclaration): string;
+        serializeTypeOfNode(node: Node): string;
+        serializeParameterTypesOfNode(node: Node): string[];
+        serializeReturnTypeOfNode(node: Node): string;
         getMetadataForSymbol(symbol: Symbol): DecoratorMetadata[];        
     }
 
@@ -1320,17 +1320,20 @@ module ts {
     }
 
     export interface SymbolLinks {
-        target?: Symbol;                    // Resolved (non-alias) target of an alias
-        type?: Type;                        // Type of value symbol
-        declaredType?: Type;                // Type of class, interface, enum, or type parameter
-        mapper?: TypeMapper;                // Type mapper for instantiation alias
-        referenced?: boolean;               // True if alias symbol has been referenced as a value
-        exportAssignmentChecked?: boolean;  // True if export assignment was checked
-        exportAssignmentSymbol?: Symbol;    // Symbol exported from external module
-        unionType?: UnionType;              // Containing union type for union property
-        resolvedExports?: SymbolTable;      // Resolved exports of module
+        target?: Symbol;                            // Resolved (non-alias) target of an alias
+        type?: Type;                                // Type of value symbol
+        declaredType?: Type;                        // Type of class, interface, enum, or type parameter
+        mapper?: TypeMapper;                        // Type mapper for instantiation alias
+        referenced?: boolean;                       // True if alias symbol has been referenced as a value
+        exportAssignmentChecked?: boolean;          // True if export assignment was checked
+        exportAssignmentSymbol?: Symbol;            // Symbol exported from external module
+        unionType?: UnionType;                      // Containing union type for union property
+        resolvedExports?: SymbolTable;              // Resolved exports of module
         decoratorMetadata?: DecoratorMetadata[];    // Resolved ambient decorator metadata        
-
+        decoratorUsage?: DecoratorUsageMetadata;
+        obsolete?: ObsoleteMetadata;
+        conditionalSymbols?: string[];
+        conditionallyRemoved?: boolean;
    }
 
     export interface TransientSymbol extends Symbol, SymbolLinks { }
@@ -1350,7 +1353,7 @@ module ts {
 
         // Values for enum members have been computed, and any errors have been reported for them.
         EnumValuesComputed      = 0x00000080,
-        EmitDecorate            = 0x00000100,  // Emit __extends
+        EmitDecorate            = 0x00000100,  // Emit __decorate
         BlockScopedBindingInLoop= 0x00000200,
         EmitDecoratedType       = 0x00000400,  // Emit the type of the decorator target as an argument in this parameter position
         EmitDecoratedParamTypes = 0x00000800,  // Emit the parameter types of the decorator target as an argument in this parameter position
@@ -1518,9 +1521,14 @@ module ts {
         // It is optional because in contextual signature instantiation, nothing fails
     }
 
-    export interface DecoratorUsage {
+    export interface DecoratorUsageMetadata {
         ambient?: boolean;
         targets?: number;
+    }
+
+    export interface ObsoleteMetadata {
+        obsolete?: boolean;
+        message?: string;
     }
 
     // DecoratorMetadata consists of the state information about an ambient decorator
