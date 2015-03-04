@@ -433,8 +433,9 @@ module ts.NavigationBar {
                     var childItems = getItemsWorker(sortNodes(nodes), createChildItem);
                 }
 
+                var nameText = !node.name && (node.flags & NodeFlags.Default) ? "default" : node.name.text;
                 return getNavigationBarItem(
-                    node.name.text,
+                    nameText,
                     ts.ScriptElementKind.classElement,
                     getNodeModifiers(node),
                     [getNodeSpan(node)],

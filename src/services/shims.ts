@@ -383,19 +383,20 @@ module ts {
                 });
         }
 
-        private realizeDiagnostics(diagnostics: Diagnostic[]): { message: string; start: number; length: number; category: string; }[]{
+        private realizeDiagnostics(diagnostics: Diagnostic[], fileName: string): { message: string; start: number; length: number; category: string; }[]{
             var newLine = this.getNewLine();
-            return diagnostics.map(d => this.realizeDiagnostic(d, newLine));
+            return diagnostics.map(d => this.realizeDiagnostic(d, newLine, fileName));
         }
 
-        private realizeDiagnostic(diagnostic: Diagnostic, newLine: string): { message: string; start: number; length: number; category: string; } {
+        private realizeDiagnostic(diagnostic: Diagnostic, newLine: string, fileName: string): { message: string; start: number; length: number; category: string; } {
             return {
                 message: flattenDiagnosticMessageText(diagnostic.messageText, newLine),
                 start: diagnostic.start,
                 length: diagnostic.length,
                 /// TODO: no need for the tolowerCase call
                 category: DiagnosticCategory[diagnostic.category].toLowerCase(),
-                code: diagnostic.code
+                code: diagnostic.code,
+                fileName: fileName || ""
             };
         }
 
@@ -426,7 +427,7 @@ module ts {
                 "getSyntacticDiagnostics('" + fileName + "')",
                 () => {
                     var diagnostics = this.languageService.getSyntacticDiagnostics(fileName);
-                    return this.realizeDiagnostics(diagnostics);
+                    return this.realizeDiagnostics(diagnostics, fileName);
                 });
         }
 
@@ -435,7 +436,7 @@ module ts {
                 "getSemanticDiagnostics('" + fileName + "')",
                 () => {
                     var diagnostics = this.languageService.getSemanticDiagnostics(fileName);
-                    return this.realizeDiagnostics(diagnostics);
+                    return this.realizeDiagnostics(diagnostics, fileName);
                 });
         }
 
@@ -444,7 +445,7 @@ module ts {
                 "getCompilerOptionsDiagnostics()",
                 () => {
                     var diagnostics = this.languageService.getCompilerOptionsDiagnostics();
-                    return this.realizeDiagnostics(diagnostics);
+                    return this.realizeDiagnostics(diagnostics, "");
                 });
         }
 
