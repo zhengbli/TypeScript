@@ -379,10 +379,18 @@ namespace ts {
                     let offset = 0;
                     let toWrite: number = buffer.length;
                     let written = 0;
+                    let tryCount = 0;
                     // 1 is a standard descriptor for stdout
-                    while ((written = _fs.writeSync(1, buffer, offset, toWrite)) < toWrite) {
-                        offset += written;
-                        toWrite -= written;
+                    while (written < toWrite && tryCount < 10) {
+                        try {
+                            written = _fs.writeSync(1, buffer, offset, toWrite);
+                            offset += written;
+                            toWrite -= written;
+                        }
+                        catch(e) {
+                            tryCount += 1;
+                            continue;
+                        }
                     }
                 },
                 readFile,
