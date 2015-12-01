@@ -19,6 +19,7 @@ namespace ts.JsTyping {
     }
 
     var _host: HostType;
+    var _safeList: Map<string>;
     
     // a typing name to typing file path mapping
     var inferredTypings: Map<string> = {};
@@ -29,6 +30,13 @@ namespace ts.JsTyping {
         }
         catch (e) { return undefined; }
     }
+
+    function getSafeList(safeListJsonPath: string) {
+        // Todo: read 
+        if (_host.fileExists(safeListJsonPath)) {
+            _safeList = tryParseJson(_host.readFile(safeListJsonPath));
+        }
+    }
     
     /**
      * @param cachePath is the path to the cache location, which contains a tsd.json file and a typings folder
@@ -37,6 +45,9 @@ namespace ts.JsTyping {
         host: HostType, fileNames: string[], cachePath: string, compilerOptions?: CompilerOptions, safeList?: string[], noDevDependencies?: boolean)
         : { cachedTypingPaths: string[], newTypingNames: string[] } {
         _host = host;
+        if (_safeList === undefined) {
+            getSafeList(ts.combinePaths(cachePath, "safelist.json"));
+        }
         // Directories to search for package.json, bower.json and other typing information
         let searchDirs: string[] = [];
 
@@ -61,7 +72,7 @@ namespace ts.JsTyping {
         }
         
         // Todo: use a real safe list
-        getTypingNamesFromSourceFileNames(fileNames, ["react", "jquery"]);
+        getTypingNamesFromSourceFileNames(fileNames);
         getTypingNamesFromCompilerOptions(compilerOptions);
 
         let normalizedCachePath = ts.normalizePath(cachePath);
@@ -145,21 +156,27 @@ namespace ts.JsTyping {
      * @param fileNames are the names for source files in the project
      * @param safeList is the list of names that we are confident they are library names that requires typing
      */
-    function getTypingNamesFromSourceFileNames(fileNames: string[], safeList: string[]) {
-        safeList = safeList.map(s => s.toLowerCase());
+    function getTypingNamesFromSourceFileNames(fileNames: string[]) {
         fileNames = fileNames.map(f => f.toLowerCase());
         let exactlyMatched: string[] = []
         let notExactlyMatched: string[] = []
         for (let fileName of fileNames) {
             let baseName = ts.getBaseFileName(fileName);
             let baseNameWithoutExtension = baseName.substring(0, baseName.lastIndexOf("."));
-            (safeList.indexOf(baseNameWithoutExtension) >= 0) ? exactlyMatched.push(baseNameWithoutExtension) : notExactlyMatched.push(baseNameWithoutExtension);
+            _safeList.hasOwnProperty(baseNameWithoutExtension) 
+                ? exactlyMatched.push(_safeList[baseNameWithoutExtension])
+                : notExactlyMatched.push(baseNameWithoutExtension);
         }
 
         let regex = /((?:\.|-)min(?=\.|$))|((?:-|\.)\d+)/g;
         notExactlyMatched = notExactlyMatched.map(f => f.replace(regex, ""));
-        let typingNames = exactlyMatched.concat(ts.filter(notExactlyMatched, f => ts.contains(safeList, f)));
-        mergeTypings(typingNames);
+        for (let item of notExactlyMatched) {
+            if (_safeList.hasOwnProperty(item)) {
+                exactlyMatched.push(_safeList[item]);
+            }
+        }
+
+        mergeTypings(exactlyMatched);
     }
 
     /**
@@ -174,7 +191,9 @@ namespace ts.JsTyping {
 
         let typingNames: string[] = [];
         let packageJsonFiles =
-            _host.readDirectory(nodeModulesPath, /*extension*/undefined, /*exclude*/undefined, /*depth*/ 2).filter(f => ts.getBaseFileName(f) === "package.json");
+            _host
+            .readDirectory(nodeModulesPath, /*extension*/undefined, /*exclude*/undefined, /*depth*/ 2)
+            .filter(f => ts.getBaseFileName(f) === "package.json");
         for (let packageJsonFile of packageJsonFiles) {
             let packageJsonContent = tryParseJson(_host.readFile(packageJsonFile));
             if (!packageJsonContent) { continue; }
@@ -186,10 +205,19 @@ namespace ts.JsTyping {
                 packageJsonContent._requiredBy.filter((r: string) => r[0] === "#" || r === "/").length === 0) {
                 continue;
             }
+
             let packageName = packageJsonContent["name"];
+            let indexDTsPath = ts.combinePaths(ts.getDirectoryPath(packageJsonFile), "index.d.ts"); 
+            
+            // If the package brought its own .d.ts files, they will be respected. The convention is either the 
+            // package's json file has a "typings" field that specifies the entry point, or there is a "index.d.ts"
+            // file at the top level which acts as the entry point.
             if (packageJsonContent.hasOwnProperty("typings")) {
                 let absPath = ts.getNormalizedAbsolutePath(packageJsonContent.typings, ts.getDirectoryPath(packageJsonFile));
                 inferredTypings[packageName] = absPath;
+            }
+            else if (_host.fileExists(indexDTsPath)) {
+                inferredTypings[packageName] = indexDTsPath;
             }
             else {
                 typingNames.push(packageName);
