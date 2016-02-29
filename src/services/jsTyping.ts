@@ -20,7 +20,7 @@ namespace ts.JsTyping {
 
     function isTypingEnabled(options: TypingOptions) {
         if (options) {
-            if (options.enableAutoDiscovery || 
+            if (options.enableAutoDiscovery ||
                 options.include && options.include.length > 0) {
                 return true;
             }

@@ -1883,7 +1883,7 @@ namespace ts {
 
         options.isolatedModules = true;
 
-        // transpileModule does not write anything to disk so there is no need to verify that there are no conflicts between input and output paths. 
+        // transpileModule does not write anything to disk so there is no need to verify that there are no conflicts between input and output paths.
         options.suppressOutputPathCheck = true;
 
         // Filename can be non-ts file.
@@ -6125,7 +6125,7 @@ namespace ts {
                     }
                 }
 
-                // For export specifiers, it can be a local symbol, e.g. 
+                // For export specifiers, it can be a local symbol, e.g.
                 //     import {a} from "mod";
                 //     export {a as somethingElse}
                 // We want the local target of the export (i.e. the import symbol) and not the final target (i.e. "mod".a)
