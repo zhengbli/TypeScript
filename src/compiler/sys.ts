@@ -405,7 +405,21 @@ namespace ts {
 
             function isNode4OrLater(): boolean {
                  return parseInt(process.version.charAt(1)) >= 4;
-             }
+            }
+
+            // fs.watch is not available on some file systems, for example
+            // network file systems or UNC paths. In these cases we should
+            // switch to a polling watcher instead
+            function isFsWatchAvailable(fileName: string) {
+                try {
+                    const testWatcher = _fs.watch(fileName);
+                    testWatcher.close();
+                    return true;
+                }
+                catch (e) {
+                    return false;
+                }
+            }
 
             const platform: string = _os.platform();
             // win32\win64 are case insensitive platforms, MacOS (darwin) by default is also case insensitive
@@ -531,7 +545,7 @@ namespace ts {
                     // and is more efficient than `fs.watchFile` (ref: https://github.com/nodejs/node/pull/2649
                     // and https://github.com/Microsoft/TypeScript/issues/4643), therefore
                     // if the current node.js version is newer than 4, use `fs.watch` instead.
-                    const watchSet = isNode4OrLater() ? watchedFileSet : pollingWatchedFileSet;
+                    const watchSet = isFsWatchAvailable(filePath) ? watchedFileSet : pollingWatchedFileSet;
                     const watchedFile =  watchSet.addFile(filePath, callback);
                     return {
                         close: () => watchSet.removeFile(watchedFile)
