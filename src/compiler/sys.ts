@@ -414,7 +414,7 @@ namespace ts {
                 try {
                     const testWatcher = _fs.watch(fileName);
                     testWatcher.close();
-                    return true;
+                    return isNode4OrLater();
                 }
                 catch (e) {
                     return false;
@@ -562,19 +562,27 @@ namespace ts {
                         options = { persistent: true };
                     }
 
-                    return _fs.watch(
-                        path,
-                        options,
-                        (eventName: string, relativeFileName: string) => {
-                            // In watchDirectory we only care about adding and removing files (when event name is
-                            // "rename"); changes made within files are handled by corresponding fileWatchers (when
-                            // event name is "change")
-                            if (eventName === "rename") {
-                                // When deleting a file, the passed baseFileName is null
-                                callback(!relativeFileName ? relativeFileName : normalizePath(combinePaths(path, relativeFileName)));
-                            };
-                        }
-                    );
+                    if (isFsWatchAvailable(path)) {
+                        return _fs.watch(
+                            path,
+                            options,
+                            (eventName: string, relativeFileName: string) => {
+                                // In watchDirectory we only care about adding and removing files (when event name is
+                                // "rename"); changes made within files are handled by corresponding fileWatchers (when
+                                // event name is "change")
+                                if (eventName === "rename") {
+                                    // When deleting a file, the passed baseFileName is null
+                                    callback(!relativeFileName ? relativeFileName : normalizePath(combinePaths(path, relativeFileName)));
+                                };
+                            }
+                        );
+                    }
+                    else {
+                        const watchedFile = pollingWatchedFileSet.addFile(<Path>path, callback);
+                        return {
+                            close: () => pollingWatchedFileSet.removeFile(watchedFile)
+                        };
+                    }
                 },
                 resolvePath: function (path: string): string {
                     return _path.resolve(path);
