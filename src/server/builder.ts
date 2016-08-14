@@ -22,18 +22,21 @@ namespace ts.server {
 
         private lastCheckedShapeSignature: string;
 
-        constructor(
-            public readonly scriptInfo: ScriptInfo,
-            public readonly project: Project
-        ) {
+        constructor(public readonly scriptInfo: ScriptInfo, public readonly project: Project) {
         }
 
         public isExternalModule() {
             const sourceFile = this.getSourceFile();
-            return isExternalModule(sourceFile) || this.containsPurelyAmbientModules(sourceFile);
+            return isExternalModule(sourceFile) || this.containsOnlyAmbientModules(sourceFile);
         }
 
-        private containsPurelyAmbientModules(sourceFile: SourceFile) {
+        /**
+         * For script files that contains only ambient external modules, although they are not external module files,
+         * they can only be consumed via importing elements in them. Regular script files cannot consume them. Therefore,
+         * there are no point to rebuild all script files if these special files have changed. However, if any statement
+         * in the file is not ambient external module, we treat it as a regular script file.
+         */
+        private containsOnlyAmbientModules(sourceFile: SourceFile) {
             // ambient module declaration will not create externalModuleIndicator
             // and we only consider files containing purely ambient module declarations
             // as external module files
@@ -52,10 +55,13 @@ namespace ts.server {
         }
 
         public getSourceFile(): SourceFile {
-            return this.project.getSourceFile(this.scriptInfo.fileName);
+            return this.project.getSourceFile(this.scriptInfo.path);
         }
 
-        public checkIfShapeSignatureChanged() {
+        /**
+         * @return {boolean} indicates if the shape signature has changed since last update.
+         */
+        public updateShapeSignature() {
             const sourceFile = this.getSourceFile();
             if (!sourceFile) {
                 return true;
@@ -82,56 +88,41 @@ namespace ts.server {
         emitFile(fileName: string, writeFile: (path: string, data: string, writeByteOrderMark?: boolean) => void, forced?: boolean): boolean;
     }
 
-    class NullBuilder implements Builder {
-        constructor(readonly project: Project) {
-        }
-
-        getFilesAffectedBy(fileName: string): string[] {
-            return undefined;
-        }
-
-        onProjectUpdateGraph() {
-        }
-
-        emitFile(fileName: string, writeFile: (path: string, data: string, writeByteOrderMark?: boolean) => void, forced?: boolean): boolean {
-            return true;
-        }
-    }
-
     abstract class AbstractBuilder<T extends BuilderFileInfo> implements Builder {
 
-        private fileInfos: Map<T> = {};
+        private fileInfos = createFileMap<T>();
 
         constructor(public readonly project: Project) {
         }
 
-        protected getFileInfo(fileName: string): T {
-            return this.fileInfos[fileName];
+        protected getFileInfo(path: Path): T {
+            return this.fileInfos.get(path);
         }
 
-        protected getAllFiles(): string[] {
-            return getKeys(this.fileInfos);
+        protected getAllFiles(): Path[] {
+            return this.fileInfos.getKeys();
         }
 
-        protected setFileInfo(fileName: string, info: T) {
-            this.fileInfos[fileName] = info;
+        protected setFileInfo(path: Path, info: T) {
+            this.fileInfos.set(path, info);
         }
 
-        protected removeFileInfo(fileName: string) {
-            if (hasProperty(this.fileInfos, fileName)) {
-                delete this.fileInfos[fileName];
+        protected removeFileInfo(path: Path) {
+            if (this.fileInfos.contains(path)) {
+                this.fileInfos.remove(path);
             }
         }
 
         protected forEachFileInfo(action: (fileInfo: T) => any) {
-            forEachValue(this.fileInfos, action);
+            this.fileInfos.forEachValue((path: Path, value: T) => action(value));
         }
 
         abstract getFilesAffectedBy(fileName: string): string[];
         abstract onProjectUpdateGraph(): void;
 
         emitFile(fileName: string, writeFile: (path: string, data: string, writeByteOrderMark?: boolean) => void, forced?: boolean): boolean {
-            const fileInfo = this.getFileInfo(fileName);
+            const path = toPath(fileName, getDirectoryPath(fileName), createGetCanonicalFileName(this.project.projectService.host.useCaseSensitiveFileNames));
+            const fileInfo = this.getFileInfo(path);
             if (!fileInfo) {
                 return false;
             }
@@ -151,18 +142,20 @@ namespace ts.server {
         onProjectUpdateGraph() {
         }
 
-        getOrCreateFileInfo(fileName: string) {
-            if (!this.getFileInfo(fileName)) {
-                const scriptInfo = this.project.getScriptInfo(fileName);
-                this.setFileInfo(fileName, new BuilderFileInfo(scriptInfo, this.project));
+        getOrCreateFileInfo(path: Path) {
+            const fileInfo = this.getFileInfo(path);
+            if (!fileInfo) {
+                const scriptInfo = this.project.getScriptInfo(path);
+                this.setFileInfo(path, new BuilderFileInfo(scriptInfo, this.project));
             }
-            return this.getFileInfo(fileName);
+            return fileInfo;
         }
 
         getFilesAffectedBy(fileName: string): string[] {
-            const info = this.getOrCreateFileInfo(fileName);
+            const path = toPath(fileName, getDirectoryPath(fileName), createGetCanonicalFileName(this.project.projectService.to));
+            const info = this.getOrCreateFileInfo(path);
             let result: string[];
-            if (info.checkIfShapeSignatureChanged()) {
+            if (info.updateShapeSignature()) {
                 const options = this.project.getCompilerOptions();
                 if (options && (options.out || options.outFile)) {
                     result = [fileName];
@@ -196,7 +189,7 @@ namespace ts.server {
         };
 
         static addToReferenceList(array: ModuleBuilderFileInfo[], fileInfo: ModuleBuilderFileInfo, afterFinalized: boolean) {
-            if (!afterFinalized) {
+            if (!afterFinalized || array.length === 0) {
                 array.push(fileInfo);
             }
             else {
@@ -230,10 +223,6 @@ namespace ts.server {
         }
 
         addReferencedBy(fileInfo: ModuleBuilderFileInfo): void {
-            if (this.referencedBy.length === 0) {
-                this.referencedBy.push(fileInfo);
-                return;
-            }
             ModuleBuilderFileInfo.addToReferenceList(this.referencedBy, fileInfo, this.finalized);
         }
 
@@ -261,27 +250,24 @@ namespace ts.server {
         private isDependencyGraphBuilt = false;
         private lastUpdateProjectVersion: string;
 
-        getReferencedFileInfos(fileName: string): ModuleBuilderFileInfo[] {
-            const referencedFileNames = this.project.getReferencedFiles(fileName);
-            if (referencedFileNames && referencedFileNames.length > 0) {
-                return map(referencedFileNames, f => this.getFileInfo(f)).sort(ModuleBuilderFileInfo.compareFileInfos);
+        private getReferencedFileInfos(path: Path): ModuleBuilderFileInfo[] {
+            const referencedFilePaths = this.project.getReferencedFiles(path);
+            if (referencedFilePaths && referencedFilePaths.length > 0) {
+                return map(referencedFilePaths, f => this.getFileInfo(f)).sort(ModuleBuilderFileInfo.compareFileInfos);
             }
             return [];
         }
 
-        ensureDependencyGraph() {
+        private ensureDependencyGraph() {
             if (this.isDependencyGraphBuilt) {
                 return;
             }
 
-            const fileNames = this.project.getFileNames();
-            for (const fileName of fileNames) {
-                const sourceFile = this.project.getSourceFile(fileName);
-                if (sourceFile) {
-                    const newFileInfo = new ModuleBuilderFileInfo(this.project.getScriptInfo(fileName), this.project);
-                    this.setFileInfo(fileName, newFileInfo);
-                    this.updateFileReferences(newFileInfo);
-                }
+            const scriptInfos = this.project.getScriptInfos();
+            for (const scriptInfo of scriptInfos) {
+                const newFileInfo = new ModuleBuilderFileInfo(scriptInfo, this.project);
+                this.setFileInfo(scriptInfo.path, newFileInfo);
+                this.updateFileReferences(newFileInfo);
             }
             this.forEachFileInfo(fileInfo => fileInfo.finalize());
             this.isDependencyGraphBuilt = true;
@@ -291,30 +277,28 @@ namespace ts.server {
             this.updateProjectDependencyGraph();
         }
 
-        updateProjectDependencyGraph() {
+        private updateProjectDependencyGraph() {
             this.ensureDependencyGraph();
 
             if (!this.lastUpdateProjectVersion || this.project.getProjectVersion() !== this.lastUpdateProjectVersion) {
-                const currentFileNames = this.project.getFileNamesWithoutDefaultLib();
-                for (const fileName of currentFileNames) {
-                    const fileInfo = this.getFileInfo(fileName);
+                const currentScriptInfos = this.project.getScriptInfos();
+                for (const scriptInfo of currentScriptInfos) {
+                    const fileInfo = this.getFileInfo(scriptInfo.path);
                     if (fileInfo) {
                         this.updateFileReferences(fileInfo);
                     }
                     else {
-                        const sourceFile = this.project.getSourceFile(fileName);
-                        if (sourceFile) {
-                            const newFileInfo = new ModuleBuilderFileInfo(this.project.getScriptInfo(fileName), this.project);
-                            this.setFileInfo(fileName, newFileInfo);
-                            this.updateFileReferences(newFileInfo);
-                        }
+                        const newFileInfo = new ModuleBuilderFileInfo(scriptInfo, this.project);
+                        this.setFileInfo(scriptInfo.path, newFileInfo);
+                        this.updateFileReferences(newFileInfo);
                     }
                 }
                 this.forEachFileInfo(fileInfo => {
-                    if (currentFileNames.indexOf(fileInfo.scriptInfo.fileName) < 0) {
+                    const sourceFile = this.project.getSourceFile(fileInfo.scriptInfo.path);
+                    if (!sourceFile) {
                         // This file was deleted from this project
                         this.removeFileReferences(fileInfo);
-                        this.removeFileInfo(fileInfo.scriptInfo.fileName);
+                        this.removeFileInfo(fileInfo.scriptInfo.path);
                     }
                 });
                 this.lastUpdateProjectVersion = this.project.getProjectVersion();
@@ -322,14 +306,14 @@ namespace ts.server {
             return;
         }
 
-        updateFileReferences(fileInfo: ModuleBuilderFileInfo) {
+        private updateFileReferences(fileInfo: ModuleBuilderFileInfo) {
             // Only need to update if the content of the file changed.
-            if (fileInfo.scriptVersionForReferences === fileInfo.scriptInfo.getLatestVersion()) {
+            if (fileInfo.scriptVersionForReferences === fileInfo.scriptInfo.getLatestVersion() ||
+                !fileInfo.isExternalModule()) {
                 return;
             }
 
-            const fileName = fileInfo.scriptInfo.fileName;
-            const newReferences = this.getReferencedFileInfos(fileName);
+            const newReferences = this.getReferencedFileInfos(fileInfo.scriptInfo.path);
             const oldReferences = fileInfo.references;
 
             let oldIndex = 0;
@@ -369,7 +353,7 @@ namespace ts.server {
             fileInfo.scriptVersionForReferences = fileInfo.scriptInfo.getLatestVersion();
         }
 
-        removeFileReferences(fileInfo: ModuleBuilderFileInfo) {
+        private removeFileReferences(fileInfo: ModuleBuilderFileInfo) {
             for (const reference of fileInfo.references) {
                 reference.removeReferencedBy(fileInfo);
             }
@@ -379,8 +363,9 @@ namespace ts.server {
         getFilesAffectedBy(fileName: string): string[] {
             this.ensureDependencyGraph();
 
-            const fileInfo = this.getFileInfo(fileName);
-            if(fileInfo && fileInfo.checkIfShapeSignatureChanged()) {
+            const path = toPath(fileName, getDirectoryPath(fileName), createGetCanonicalFileName(this.project.projectService.host.useCaseSensitiveFileNames));
+            const fileInfo = this.getFileInfo(path);
+            if(fileInfo && fileInfo.updateShapeSignature()) {
                 let result: string[];
                 if (!fileInfo.isExternalModule()) {
                     result = this.project.getFileNamesWithoutDefaultLib();
