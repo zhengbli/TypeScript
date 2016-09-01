@@ -7067,9 +7067,13 @@ namespace ts {
 
         /// NavigateTo
         function getNavigateToItems(searchValue: string, maxResultCount?: number, excludeDts?: boolean): NavigateToItem[] {
+            const startTime = timestamp();
             synchronizeHostData();
             const checker = getProgram().getTypeChecker();
-            return ts.NavigateTo.getNavigateToItems(program, checker, cancellationToken, searchValue, maxResultCount, excludeDts);
+            const result = ts.NavigateTo.getNavigateToItems(program, checker, cancellationToken, searchValue, maxResultCount, excludeDts);
+            log("getNavigateToItems (ms): " + (timestamp() - startTime));
+
+            return result;
         }
 
         function getEmitOutput(fileName: string, emitDeclarationsOnly?: boolean): EmitOutput {
