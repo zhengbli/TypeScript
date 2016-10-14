@@ -345,39 +345,42 @@ namespace ts {
                         symbol = symbolTable[name] = createSymbol(SymbolFlags.None, name);
                     }
                     else {
-                        if (node.name) {
-                            node.name.parent = node;
-                        }
-
-                        // Report errors every position with duplicate declaration
-                        // Report errors on previous encountered declarations
-                        let message = symbol.flags & SymbolFlags.BlockScopedVariable
-                            ? Diagnostics.Cannot_redeclare_block_scoped_variable_0
-                            : Diagnostics.Duplicate_identifier_0;
-
-                        if (symbol.declarations && symbol.declarations.length) {
-                            // If the current node is a default export of some sort, then check if
-                            // there are any other default exports that we need to error on.
-                            // We'll know whether we have other default exports depending on if `symbol` already has a declaration list set.
-                            if (isDefaultExport) {
-                                message = Diagnostics.A_module_cannot_have_multiple_default_exports;
+                        // Don't report the error if the error comes from a JsDoc typedef declaration
+                        if (!isJSDocNode(node)) {
+                            if (node.name) {
+                                node.name.parent = node;
                             }
-                            else {
-                                // This is to properly report an error in the case "export default { }" is after export default of class declaration or function declaration.
-                                // Error on multiple export default in the following case:
-                                // 1. multiple export default of class declaration or function declaration by checking NodeFlags.Default
-                                // 2. multiple export default of export assignment. This one doesn't have NodeFlags.Default on (as export default doesn't considered as modifiers)
-                                if (symbol.declarations && symbol.declarations.length &&
-                                    (isDefaultExport || (node.kind === SyntaxKind.ExportAssignment &&  !(<ExportAssignment>node).isExportEquals))) {
-                                        message = Diagnostics.A_module_cannot_have_multiple_default_exports;
-                                 }
-                            }
-                        }
 
-                        forEach(symbol.declarations, declaration => {
-                            file.bindDiagnostics.push(createDiagnosticForNode(declaration.name || declaration, message, getDisplayName(declaration)));
-                        });
-                        file.bindDiagnostics.push(createDiagnosticForNode(node.name || node, message, getDisplayName(node)));
+                            // Report errors every position with duplicate declaration
+                            // Report errors on previous encountered declarations
+                            let message = symbol.flags & SymbolFlags.BlockScopedVariable
+                                ? Diagnostics.Cannot_redeclare_block_scoped_variable_0
+                                : Diagnostics.Duplicate_identifier_0;
+
+                            if (symbol.declarations && symbol.declarations.length) {
+                                // If the current node is a default export of some sort, then check if
+                                // there are any other default exports that we need to error on.
+                                // We'll know whether we have other default exports depending on if `symbol` already has a declaration list set.
+                                if (isDefaultExport) {
+                                    message = Diagnostics.A_module_cannot_have_multiple_default_exports;
+                                }
+                                else {
+                                    // This is to properly report an error in the case "export default { }" is after export default of class declaration or function declaration.
+                                    // Error on multiple export default in the following case:
+                                    // 1. multiple export default of class declaration or function declaration by checking NodeFlags.Default
+                                    // 2. multiple export default of export assignment. This one doesn't have NodeFlags.Default on (as export default doesn't considered as modifiers)
+                                    if (symbol.declarations && symbol.declarations.length &&
+                                        (isDefaultExport || (node.kind === SyntaxKind.ExportAssignment &&  !(<ExportAssignment>node).isExportEquals))) {
+                                            message = Diagnostics.A_module_cannot_have_multiple_default_exports;
+                                    }
+                                }
+                            }
+
+                            forEach(symbol.declarations, declaration => {
+                                file.bindDiagnostics.push(createDiagnosticForNode(declaration.name || declaration, message, getDisplayName(declaration)));
+                            });
+                            file.bindDiagnostics.push(createDiagnosticForNode(node.name || node, message, getDisplayName(node)));
+                        }
 
                         symbol = createSymbol(SymbolFlags.None, name);
                     }
