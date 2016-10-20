@@ -1,7 +1,4 @@
-﻿/// <reference path="..\compiler\commandLineParser.ts" />
-/// <reference path="..\services\services.ts" />
-/// <reference path="session.ts" />
-/// <reference types="node" />
+﻿/// <reference types="node" />
 
 namespace ts.server {
 
@@ -14,18 +11,104 @@ namespace ts.server {
         createHash(algorithm: string): Hash
     } = require("crypto");
 
-    export function shouldEmitFile(scriptInfo: ScriptInfo) {
-        return !scriptInfo.hasMixedContent;
+    export interface BuilderHost {
+        getReferencedFiles(path: Path): Path[];
+        getSourceFile(path: Path): SourceFile;
+        getCompilerOptions(): CompilerOptions;
+        getProgram(): Program;
+        getFilePaths(): Path[];
+        getFileVersion(path: Path): string;
+        checkFileHaveMixedContent(path: Path): boolean;
+        getVersion(): string;
+        getProjectRootPath(): string;
+        getCanonicalFileName(fileName: string): string;
+
+        getFileEmitOutput?(fileName: string, emitOnlyDtsFiles: boolean): EmitOutput;
+        getAllEmittableFiles?(): string[];
+        //getScriptInfo?(path: Path): ScriptInfo;
     }
 
-    /**
-     * An abstract file info that maintains a shape signature.
-     */
+    export function shouldEmitFile(info: BuilderFileInfo) {
+        return !info.hasMixedContent;
+    }
+
     export class BuilderFileInfo {
+
+        public readonly path: Path;
+        public readonly hasMixedContent: boolean;
 
         private lastCheckedShapeSignature: string;
 
-        constructor(public readonly scriptInfo: ScriptInfo, public readonly project: Project) {
+        references: BuilderFileInfo[] = [];
+        referencedBy: BuilderFileInfo[] = [];
+        scriptVersionForReferences: string;
+
+        constructor(public readonly fileName: string, public readonly host: BuilderHost) {
+            this.path = toPath(fileName, getDirectoryPath(fileName), host.getCanonicalFileName);
+
+            if (this.host.checkFileHaveMixedContent) {
+                this.hasMixedContent = this.host.checkFileHaveMixedContent(this.path);
+            }
+            else {
+                this.hasMixedContent = false;
+            }
+        }
+
+        static compareFileInfos(lf: BuilderFileInfo, rf: BuilderFileInfo): number {
+            const l = lf.fileName;
+            const r = rf.fileName;
+            return (l < r ? -1 : (l > r ? 1 : 0));
+        };
+
+        static addToReferenceList(array: BuilderFileInfo[], fileInfo: BuilderFileInfo) {
+            if (array.length === 0) {
+                array.push(fileInfo);
+                return;
+            }
+
+            const insertIndex = binarySearch(array, fileInfo, BuilderFileInfo.compareFileInfos);
+            if (insertIndex < 0) {
+                array.splice(~insertIndex, 0, fileInfo);
+            }
+        }
+
+        static removeFromReferenceList(array: BuilderFileInfo[], fileInfo: BuilderFileInfo) {
+            if (!array || array.length === 0) {
+                return;
+            }
+
+            if (array[0] === fileInfo) {
+                array.splice(0, 1);
+                return;
+            }
+
+            const removeIndex = binarySearch(array, fileInfo, BuilderFileInfo.compareFileInfos);
+            if (removeIndex >= 0) {
+                array.splice(removeIndex, 1);
+            }
+        }
+
+        addReferencedBy(fileInfo: BuilderFileInfo): void {
+            BuilderFileInfo.addToReferenceList(this.referencedBy, fileInfo);
+        }
+
+        removeReferencedBy(fileInfo: BuilderFileInfo): void {
+            BuilderFileInfo.removeFromReferenceList(this.referencedBy, fileInfo);
+        }
+
+        removeFileReferences() {
+            for (const reference of this.references) {
+                reference.removeReferencedBy(this);
+            }
+            this.references = [];
+        }
+
+        getLatestVersion() {
+            if (this.host.getFileVersion) {
+                return this.host.getFileVersion(this.path);
+            }
+            // Otherwise invalidate the file version cache.
+            return undefined;
         }
 
         public isExternalModuleOrHasOnlyAmbientExternalModules() {
@@ -55,7 +138,7 @@ namespace ts.server {
         }
 
         private getSourceFile(): SourceFile {
-            return this.project.getSourceFile(this.scriptInfo.path);
+            return this.host.getSourceFile(this.path);
         }
 
         /**
@@ -72,7 +155,7 @@ namespace ts.server {
                 this.lastCheckedShapeSignature = this.computeHash(sourceFile.text);
             }
             else {
-                const emitOutput = this.project.getFileEmitOutput(this.scriptInfo, /*emitOnlyDtsFiles*/ true);
+                const emitOutput = this.host.getFileEmitOutput(this.fileName, /*emitOnlyDtsFiles*/ true);
                 if (emitOutput.outputFiles && emitOutput.outputFiles.length > 0) {
                     this.lastCheckedShapeSignature = this.computeHash(emitOutput.outputFiles[0].text);
                 }
@@ -81,29 +164,22 @@ namespace ts.server {
         }
     }
 
-    export interface Builder {
-        readonly project: Project;
-        getFilesAffectedBy(scriptInfo: ScriptInfo): string[];
-        onProjectUpdateGraph(): void;
-        emitFile(scriptInfo: ScriptInfo, writeFile: (path: string, data: string, writeByteOrderMark?: boolean) => void): boolean;
-    }
+    export abstract class Builder {
 
-    abstract class AbstractBuilder<T extends BuilderFileInfo> implements Builder {
+        private fileInfos = createFileMap<BuilderFileInfo>();
 
-        private fileInfos = createFileMap<T>();
-
-        constructor(public readonly project: Project, private ctor: { new (scriptInfo: ScriptInfo, project: Project): T }) {
+        constructor(public readonly host: BuilderHost) {
         }
 
-        protected getFileInfo(path: Path): T {
+        protected getFileInfo(path: Path): BuilderFileInfo {
             return this.fileInfos.get(path);
         }
 
-        protected getOrCreateFileInfo(path: Path): T {
+        protected getOrCreateFileInfo(fileName: string): BuilderFileInfo {
+            const path = toPath(fileName, getDirectoryPath(fileName), this.host.getCanonicalFileName);
             let fileInfo = this.getFileInfo(path);
             if (!fileInfo) {
-                const scriptInfo = this.project.getScriptInfo(path);
-                fileInfo = new this.ctor(scriptInfo, this.project);
+                fileInfo = new BuilderFileInfo(fileName, this.host);
                 this.setFileInfo(path, fileInfo);
             }
             return fileInfo;
@@ -113,7 +189,7 @@ namespace ts.server {
             return this.fileInfos.getKeys();
         }
 
-        protected setFileInfo(path: Path, info: T) {
+        protected setFileInfo(path: Path, info: BuilderFileInfo) {
             this.fileInfos.set(path, info);
         }
 
@@ -121,12 +197,12 @@ namespace ts.server {
             this.fileInfos.remove(path);
         }
 
-        protected forEachFileInfo(action: (fileInfo: T) => any) {
+        protected forEachFileInfo(action: (fileInfo: BuilderFileInfo) => any) {
             this.fileInfos.forEachValue((_path, value) => action(value));
         }
 
-        abstract getFilesAffectedBy(scriptInfo: ScriptInfo): string[];
-        abstract onProjectUpdateGraph(): void;
+        abstract getFileNamesAffectedBy(path: Path): string[];
+        abstract updateReferenceGraph(): void;
 
         /**
          * @returns {boolean} whether the emit was conducted or not
@@ -137,9 +213,9 @@ namespace ts.server {
                 return false;
             }
 
-            const { emitSkipped, outputFiles } = this.project.getFileEmitOutput(fileInfo.scriptInfo, /*emitOnlyDtsFiles*/ false);
+            const { emitSkipped, outputFiles } = this.host.getFileEmitOutput(fileInfo.path, /*emitOnlyDtsFiles*/ false);
             if (!emitSkipped) {
-                const projectRootPath = this.project.getProjectRootPath();
+                const projectRootPath = this.host.getProjectRootPath();
                 for (const outputFile of outputFiles) {
                     const outputFileAbsoluteFileName = getNormalizedAbsolutePath(outputFile.name, projectRootPath ? projectRootPath : getDirectoryPath(scriptInfo.fileName));
                     writeFile(outputFileAbsoluteFileName, outputFile.text, outputFile.writeByteOrderMark);
@@ -149,13 +225,22 @@ namespace ts.server {
         }
     }
 
-    class NonModuleBuilder extends AbstractBuilder<BuilderFileInfo> {
-
-        constructor(public readonly project: Project) {
-            super(project, BuilderFileInfo);
+    class NullBuilder extends Builder {
+        getFileNamesAffectedBy(path: Path): string[] {
+            return [path, "test"];
         }
 
-        onProjectUpdateGraph() {
+        updateReferenceGraph() {
+        }
+    }
+
+    class NonModuleBuilder extends Builder {
+
+        constructor(public readonly host: BuilderHost) {
+            super(host);
+        }
+
+        updateReferenceGraph() {
         }
 
         /**
@@ -163,122 +248,67 @@ namespace ts.server {
          * consumed by the API user, which will use it to interact with file systems. Path
          * should only be used internally, because the case sensitivity is not trustable.
          */
-        getFilesAffectedBy(scriptInfo: ScriptInfo): string[] {
-            const info = this.getOrCreateFileInfo(scriptInfo.path);
-            const singleFileResult = scriptInfo.hasMixedContent ? [] : [scriptInfo.fileName];
+        getFileNamesAffectedBy(path: Path): string[] {
+            const info = this.getOrCreateFileInfo(path);
+            const singleFileResult = info.hasMixedContent ? [] : [info.fileName];
             if (info.updateShapeSignature()) {
-                const options = this.project.getCompilerOptions();
+                const options = this.host.getCompilerOptions();
                 // If `--out` or `--outFile` is specified, any new emit will result in re-emitting the entire project,
                 // so returning the file itself is good enough.
                 if (options && (options.out || options.outFile)) {
                     return singleFileResult;
                 }
-                return this.project.getAllEmittableFiles();
+                return this.host.getAllEmittableFiles();
             }
             return singleFileResult;
         }
     }
 
-    class ModuleBuilderFileInfo extends BuilderFileInfo {
-        references: ModuleBuilderFileInfo[] = [];
-        referencedBy: ModuleBuilderFileInfo[] = [];
-        scriptVersionForReferences: string;
+    class ModuleBuilder extends Builder {
 
-        static compareFileInfos(lf: ModuleBuilderFileInfo, rf: ModuleBuilderFileInfo): number {
-            const l = lf.scriptInfo.fileName;
-            const r = rf.scriptInfo.fileName;
-            return (l < r ? -1 : (l > r ? 1 : 0));
-        };
-
-        static addToReferenceList(array: ModuleBuilderFileInfo[], fileInfo: ModuleBuilderFileInfo) {
-            if (array.length === 0) {
-                array.push(fileInfo);
-                return;
-            }
-
-            const insertIndex = binarySearch(array, fileInfo, ModuleBuilderFileInfo.compareFileInfos);
-            if (insertIndex < 0) {
-                array.splice(~insertIndex, 0, fileInfo);
-            }
-        }
-
-        static removeFromReferenceList(array: ModuleBuilderFileInfo[], fileInfo: ModuleBuilderFileInfo) {
-            if (!array || array.length === 0) {
-                return;
-            }
-
-            if (array[0] === fileInfo) {
-                array.splice(0, 1);
-                return;
-            }
-
-            const removeIndex = binarySearch(array, fileInfo, ModuleBuilderFileInfo.compareFileInfos);
-            if (removeIndex >= 0) {
-                array.splice(removeIndex, 1);
-            }
-        }
-
-        addReferencedBy(fileInfo: ModuleBuilderFileInfo): void {
-            ModuleBuilderFileInfo.addToReferenceList(this.referencedBy, fileInfo);
-        }
-
-        removeReferencedBy(fileInfo: ModuleBuilderFileInfo): void {
-            ModuleBuilderFileInfo.removeFromReferenceList(this.referencedBy, fileInfo);
-        }
-
-        removeFileReferences() {
-            for (const reference of this.references) {
-                reference.removeReferencedBy(this);
-            }
-            this.references = [];
-        }
-    }
-
-    class ModuleBuilder extends AbstractBuilder<ModuleBuilderFileInfo> {
-
-        constructor(public readonly project: Project) {
-            super(project, ModuleBuilderFileInfo);
+        constructor(public readonly host: BuilderHost) {
+            super(host);
         }
 
         private projectVersionForDependencyGraph: string;
 
-        private getReferencedFileInfos(fileInfo: ModuleBuilderFileInfo): ModuleBuilderFileInfo[] {
+        private getReferencedFileInfos(fileInfo: BuilderFileInfo): BuilderFileInfo[] {
             if (!fileInfo.isExternalModuleOrHasOnlyAmbientExternalModules()) {
                 return [];
             }
 
-            const referencedFilePaths = this.project.getReferencedFiles(fileInfo.scriptInfo.path);
+            const referencedFilePaths = this.host.getReferencedFiles(fileInfo.path);
             if (referencedFilePaths.length > 0) {
-                return map(referencedFilePaths, f => this.getOrCreateFileInfo(f)).sort(ModuleBuilderFileInfo.compareFileInfos);
+                return map(referencedFilePaths, f => this.getOrCreateFileInfo(f)).sort(BuilderFileInfo.compareFileInfos);
             }
             return [];
         }
 
-        onProjectUpdateGraph() {
+        updateReferenceGraph() {
             this.ensureProjectDependencyGraphUpToDate();
         }
 
         private ensureProjectDependencyGraphUpToDate() {
-            if (!this.projectVersionForDependencyGraph || this.project.getProjectVersion() !== this.projectVersionForDependencyGraph) {
-                const currentScriptInfos = this.project.getScriptInfos();
-                for (const scriptInfo of currentScriptInfos) {
-                    const fileInfo = this.getOrCreateFileInfo(scriptInfo.path);
+            if (!this.projectVersionForDependencyGraph || this.host.getVersion() !== this.projectVersionForDependencyGraph) {
+                const filePaths = this.host.getFilePaths();
+                for (const filePath of filePaths) {
+                    const fileInfo = this.getOrCreateFileInfo(filePath);
                     this.updateFileReferences(fileInfo);
                 }
                 this.forEachFileInfo(fileInfo => {
-                    if (!this.project.containsScriptInfo(fileInfo.scriptInfo)) {
+                    if (!this.host.getProgram().getSourceFileByPath(fileInfo.path)) {
                         // This file was deleted from this project
                         fileInfo.removeFileReferences();
-                        this.removeFileInfo(fileInfo.scriptInfo.path);
+                        this.removeFileInfo(fileInfo.path);
                     }
                 });
-                this.projectVersionForDependencyGraph = this.project.getProjectVersion();
+                this.projectVersionForDependencyGraph = this.host.getVersion();
             }
         }
 
-        private updateFileReferences(fileInfo: ModuleBuilderFileInfo) {
+        private updateFileReferences(fileInfo: BuilderFileInfo) {
             // Only need to update if the content of the file changed.
-            if (fileInfo.scriptVersionForReferences === fileInfo.scriptInfo.getLatestVersion()) {
+            if (fileInfo.scriptVersionForReferences && fileInfo.scriptVersionForReferences === fileInfo.getLatestVersion()) {
                 return;
             }
 
@@ -290,7 +320,7 @@ namespace ts.server {
             while (oldIndex < oldReferences.length && newIndex < newReferences.length) {
                 const oldReference = oldReferences[oldIndex];
                 const newReference = newReferences[newIndex];
-                const compare = ModuleBuilderFileInfo.compareFileInfos(oldReference, newReference);
+                const compare = BuilderFileInfo.compareFileInfos(oldReference, newReference);
                 if (compare < 0) {
                     // New reference is greater then current reference. That means
                     // the current reference doesn't exist anymore after parsing. So delete
@@ -319,23 +349,24 @@ namespace ts.server {
             }
 
             fileInfo.references = newReferences;
-            fileInfo.scriptVersionForReferences = fileInfo.scriptInfo.getLatestVersion();
+            fileInfo.scriptVersionForReferences = fileInfo.getLatestVersion();
         }
 
-        getFilesAffectedBy(scriptInfo: ScriptInfo): string[] {
+        getFileNamesAffectedBy(path: Path): string[] {
             this.ensureProjectDependencyGraphUpToDate();
 
-            const singleFileResult = scriptInfo.hasMixedContent ? [] : [scriptInfo.fileName];
-            const fileInfo = this.getFileInfo(scriptInfo.path);
+            const fileInfo = this.getFileInfo(path);
+            const singleFileResult = fileInfo.hasMixedContent ? [] : [fileInfo.fileName];
+            
             if (!fileInfo || !fileInfo.updateShapeSignature()) {
                 return singleFileResult;
             }
 
             if (!fileInfo.isExternalModuleOrHasOnlyAmbientExternalModules()) {
-                return this.project.getAllEmittableFiles();
+                return this.host.getAllEmittableFiles();
             }
 
-            const options = this.project.getCompilerOptions();
+            const options = this.host.getCompilerOptions();
             if (options && (options.isolatedModules || options.out || options.outFile)) {
                 return singleFileResult;
             }
@@ -346,18 +377,18 @@ namespace ts.server {
 
             // Use slice to clone the array to avoid manipulating in place
             const queue = fileInfo.referencedBy.slice(0);
-            const fileNameSet = createMap<ScriptInfo>();
-            fileNameSet[scriptInfo.fileName] = scriptInfo;
+            const fileNameSet = createMap<BuilderFileInfo>();
+            fileNameSet[fileInfo.fileName] = fileInfo;
             while (queue.length > 0) {
                 const processingFileInfo = queue.pop();
                 if (processingFileInfo.updateShapeSignature() && processingFileInfo.referencedBy.length > 0) {
                     for (const potentialFileInfo of processingFileInfo.referencedBy) {
-                        if (!fileNameSet[potentialFileInfo.scriptInfo.fileName]) {
+                        if (!fileNameSet[potentialFileInfo.fileName]) {
                             queue.push(potentialFileInfo);
                         }
                     }
                 }
-                fileNameSet[processingFileInfo.scriptInfo.fileName] = processingFileInfo.scriptInfo;
+                fileNameSet[processingFileInfo.fileName] = processingFileInfo;
             }
             const result: string[] = [];
             for (const fileName in fileNameSet) {
@@ -369,13 +400,18 @@ namespace ts.server {
         }
     }
 
-    export function createBuilder(project: Project): Builder {
-        const moduleKind = project.getCompilerOptions().module;
+    export function createBuilder(host: BuilderHost): Builder {
+        const options = host.getCompilerOptions();
+        if (!options) {
+            return new NullBuilder(host);
+        }
+
+        const moduleKind = options.module;
         switch (moduleKind) {
             case ModuleKind.None:
-                return new NonModuleBuilder(project);
+                return new NonModuleBuilder(host);
             default:
-                return new ModuleBuilder(project);
+                return new ModuleBuilder(host);
         }
     }
 }

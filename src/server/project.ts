@@ -133,8 +133,27 @@ namespace ts.server {
                 this.disableLanguageService();
             }
 
-            this.builder = createBuilder(this);
+            this.createBuilder();
+
             this.markAsDirty();
+        }
+
+        createBuilder() {
+            const builderHost: BuilderHost = {
+                getReferencedFiles: this.getReferencedFiles,
+                getSourceFile: this.getSourceFile,
+                getCompilerOptions: this.getCompilerOptions,
+                getFilePaths: () => map(this.getScriptInfos(), info => info.path),
+                getFileVersion: (path: Path) => this.getScriptInfo(path).getLatestVersion(),
+                checkFileHaveMixedContent: (path: Path) => this.getScriptInfo(path).hasMixedContent,
+                getVersion: this.getProjectVersion,
+                getProjectRootPath: this.getProjectRootPath,
+                getCanonicalFileName: createGetCanonicalFileName(this.projectService.host.useCaseSensitiveFileNames),
+                getProgram: () => this.getLanguageService().getProgram(),
+                getFileEmitOutput: this.getFileEmitOutput,
+                getAllEmittableFiles: this.getAllEmittableFiles
+            };
+            this.builder = createBuilder(builderHost);
         }
 
         getProjectErrors() {
@@ -153,7 +172,7 @@ namespace ts.server {
                 return [];
             }
             this.updateGraph();
-            return this.builder.getFilesAffectedBy(scriptInfo);
+            return this.builder.getFileNamesAffectedBy(scriptInfo.path);
         }
 
         getProjectVersion() {
@@ -255,11 +274,11 @@ namespace ts.server {
             });
         }
 
-        getFileEmitOutput(info: ScriptInfo, emitOnlyDtsFiles: boolean) {
+        getFileEmitOutput(fileName: string, emitOnlyDtsFiles: boolean) {
             if (!this.languageServiceEnabled) {
                 return undefined;
             }
-            return this.getLanguageService().getEmitOutput(info.fileName, emitOnlyDtsFiles);
+            return this.getLanguageService().getEmitOutput(fileName, emitOnlyDtsFiles);
         }
 
         getFileNames() {
@@ -290,7 +309,7 @@ namespace ts.server {
             const infos = this.getScriptInfos();
             const result: string[] = [];
             for (const info of infos) {
-                if (getBaseFileName(info.fileName) !== defaultLibraryFileName && shouldEmitFile(info)) {
+                if (getBaseFileName(info.fileName) !== defaultLibraryFileName && !info.hasMixedContent) {
                     result.push(info.fileName);
                 }
             }
@@ -389,7 +408,7 @@ namespace ts.server {
                     }
                 }
             }
-            this.builder.onProjectUpdateGraph();
+            this.builder.updateReferenceGraph();
             return hasChanges;
         }
 

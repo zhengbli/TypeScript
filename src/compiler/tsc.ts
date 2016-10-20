@@ -250,8 +250,8 @@ namespace ts {
         let compilerOptions: CompilerOptions;                       // Compiler options for compilation
         let compilerHost: CompilerHost;                             // Compiler host
         let hostGetSourceFile: typeof compilerHost.getSourceFile;   // getSourceFile method from default host
-        let timerHandleForRecompilation: number;                    // Handle for 0.25s wait timer to trigger recompilation
-        let timerHandleForDirectoryChanges: number;                 // Handle for 0.25s wait timer to trigger directory change handler
+        let timerHandleForRecompilation: any;                    // Handle for 0.25s wait timer to trigger recompilation
+        let timerHandleForDirectoryChanges: any;                 // Handle for 0.25s wait timer to trigger directory change handler
 
         // This map stores and reuses results of fileExists check that happen inside 'createProgram'
         // This allows to save time in module resolution heavy scenarios when existence of the same file might be checked multiple times.
