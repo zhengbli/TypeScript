@@ -503,10 +503,14 @@ namespace ts {
         }
 
         function startTimerForHandlingDirectoryChanges() {
-            if (timerHandleForDirectoryChanges) {
-                clearTimeout(timerHandleForDirectoryChanges);
+            if (!sys.setTimeout || !sys.clearTimeout) {
+                return;
             }
-            timerHandleForDirectoryChanges = setTimeout(directoryChangeHandler, 250);
+
+            if (timerHandleForDirectoryChanges) {
+                sys.clearTimeout(timerHandleForDirectoryChanges);
+            }
+            timerHandleForDirectoryChanges = sys.setTimeout(directoryChangeHandler, 250);
         }
 
         function directoryChangeHandler() {
@@ -525,10 +529,14 @@ namespace ts {
         // operations (such as saving all modified files in an editor) a chance to complete before we kick
         // off a new compilation.
         function startTimerForRecompilation() {
-            if (timerHandleForRecompilation) {
-                clearTimeout(timerHandleForRecompilation);
+            if (!sys.setTimeout || !sys.clearTimeout) {
+                return;
             }
-            timerHandleForRecompilation = setTimeout(recompile, 250);
+
+            if (timerHandleForRecompilation) {
+                sys.clearTimeout(timerHandleForRecompilation);
+            }
+            timerHandleForRecompilation = sys.setTimeout(recompile, 250);
         }
 
         function recompile() {
