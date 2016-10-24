@@ -15,11 +15,10 @@ namespace ts.server {
         getReferencedFiles(path: Path): Path[];
         getSourceFile(path: Path): SourceFile;
         getCompilerOptions(): CompilerOptions;
-        getProgram(): Program;
-        getFilePaths(): Path[];
+        getFileNames(): string[];
         getFileVersion(path: Path): string;
         checkFileHaveMixedContent(path: Path): boolean;
-        getVersion(): string;
+        getProjectVersion(): string;
         getProjectRootPath(): string;
         getCanonicalFileName(fileName: string): string;
 
@@ -201,7 +200,7 @@ namespace ts.server {
             this.fileInfos.forEachValue((_path, value) => action(value));
         }
 
-        abstract getFileNamesAffectedBy(path: Path): string[];
+        abstract getFileNamesAffectedBy(fileName: string): string[];
         abstract updateReferenceGraph(): void;
 
         /**
@@ -226,8 +225,8 @@ namespace ts.server {
     }
 
     class NullBuilder extends Builder {
-        getFileNamesAffectedBy(path: Path): string[] {
-            return [path, "test"];
+        getFileNamesAffectedBy(fileName: string): string[] {
+            return [fileName];
         }
 
         updateReferenceGraph() {
@@ -248,8 +247,8 @@ namespace ts.server {
          * consumed by the API user, which will use it to interact with file systems. Path
          * should only be used internally, because the case sensitivity is not trustable.
          */
-        getFileNamesAffectedBy(path: Path): string[] {
-            const info = this.getOrCreateFileInfo(path);
+        getFileNamesAffectedBy(fileName: string): string[] {
+            const info = this.getOrCreateFileInfo(fileName);
             const singleFileResult = info.hasMixedContent ? [] : [info.fileName];
             if (info.updateShapeSignature()) {
                 const options = this.host.getCompilerOptions();
@@ -289,20 +288,20 @@ namespace ts.server {
         }
 
         private ensureProjectDependencyGraphUpToDate() {
-            if (!this.projectVersionForDependencyGraph || this.host.getVersion() !== this.projectVersionForDependencyGraph) {
-                const filePaths = this.host.getFilePaths();
+            if (!this.projectVersionForDependencyGraph || this.host.getProjectVersion() !== this.projectVersionForDependencyGraph) {
+                const filePaths = this.host.getFileNames();
                 for (const filePath of filePaths) {
                     const fileInfo = this.getOrCreateFileInfo(filePath);
                     this.updateFileReferences(fileInfo);
                 }
                 this.forEachFileInfo(fileInfo => {
-                    if (!this.host.getProgram().getSourceFileByPath(fileInfo.path)) {
+                    if (!this.host.getSourceFile(fileInfo.path)) {
                         // This file was deleted from this project
                         fileInfo.removeFileReferences();
                         this.removeFileInfo(fileInfo.path);
                     }
                 });
-                this.projectVersionForDependencyGraph = this.host.getVersion();
+                this.projectVersionForDependencyGraph = this.host.getProjectVersion();
             }
         }
 
@@ -352,9 +351,10 @@ namespace ts.server {
             fileInfo.scriptVersionForReferences = fileInfo.getLatestVersion();
         }
 
-        getFileNamesAffectedBy(path: Path): string[] {
+        getFileNamesAffectedBy(fileName: string): string[] {
             this.ensureProjectDependencyGraphUpToDate();
 
+            const path = toPath(fileName, getDirectoryPath(fileName), this.host.getCanonicalFileName); 
             const fileInfo = this.getFileInfo(path);
             const singleFileResult = fileInfo.hasMixedContent ? [] : [fileInfo.fileName];
             

@@ -140,18 +140,17 @@ namespace ts.server {
 
         createBuilder() {
             const builderHost: BuilderHost = {
-                getReferencedFiles: this.getReferencedFiles,
-                getSourceFile: this.getSourceFile,
-                getCompilerOptions: this.getCompilerOptions,
-                getFilePaths: () => map(this.getScriptInfos(), info => info.path),
+                getReferencedFiles: (path: Path) => this.getReferencedFiles(path),
+                getSourceFile: (path: Path) => this.getSourceFile(path),
+                getCompilerOptions: () => this.getCompilerOptions(),
+                getFileNames: () => this.getFileNames(),
                 getFileVersion: (path: Path) => this.getScriptInfo(path).getLatestVersion(),
                 checkFileHaveMixedContent: (path: Path) => this.getScriptInfo(path).hasMixedContent,
-                getVersion: this.getProjectVersion,
-                getProjectRootPath: this.getProjectRootPath,
+                getProjectVersion: () => this.getProjectVersion(),
+                getProjectRootPath: () => this.getProjectRootPath(),
                 getCanonicalFileName: createGetCanonicalFileName(this.projectService.host.useCaseSensitiveFileNames),
-                getProgram: () => this.getLanguageService().getProgram(),
-                getFileEmitOutput: this.getFileEmitOutput,
-                getAllEmittableFiles: this.getAllEmittableFiles
+                getFileEmitOutput: (fileName: string, emitOnlyDtsFiles: boolean) => this.getFileEmitOutput(fileName, emitOnlyDtsFiles),
+                getAllEmittableFiles: () => this.getAllEmittableFiles()
             };
             this.builder = createBuilder(builderHost);
         }
@@ -172,7 +171,7 @@ namespace ts.server {
                 return [];
             }
             this.updateGraph();
-            return this.builder.getFileNamesAffectedBy(scriptInfo.path);
+            return this.builder.getFileNamesAffectedBy(scriptInfo.fileName);
         }
 
         getProjectVersion() {
