@@ -102,8 +102,8 @@ namespace ts {
     }
 
     export const enum Comparison {
-        LessThan    = -1,
-        EqualTo     = 0,
+        LessThan = -1,
+        EqualTo = 0,
         GreaterThan = 1
     }
 
@@ -972,7 +972,7 @@ namespace ts {
     }
 
     /** Does nothing. */
-    export function noop(): void {}
+    export function noop(): void { }
 
     /** Throws an error because a function is not implemented. */
     export function notImplemented(): never {
@@ -1355,6 +1355,14 @@ namespace ts {
         return typeof compilerOptions.module === "number" ?
             compilerOptions.module :
             getEmitScriptTarget(compilerOptions) >= ScriptTarget.ES2015 ? ModuleKind.ES2015 : ModuleKind.CommonJS;
+    }
+
+    export function getEmitModuleResolutionKind(compilerOptions: CompilerOptions) {
+        let moduleResolution = compilerOptions.moduleResolution;
+        if (moduleResolution === undefined) {
+            moduleResolution = getEmitModuleKind(compilerOptions) === ModuleKind.CommonJS ? ModuleResolutionKind.NodeJs : ModuleResolutionKind.Classic;
+        }
+        return moduleResolution;
     }
 
     /* @internal */
