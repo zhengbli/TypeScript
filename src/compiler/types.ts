@@ -330,6 +330,7 @@
         JsxOpeningElement,
         JsxClosingElement,
         JsxAttribute,
+        JsxAttributes,
         JsxSpreadAttribute,
         JsxExpression,
 
@@ -624,6 +625,7 @@
         kind: SyntaxKind.TypeParameter;
         name: Identifier;
         constraint?: TypeNode;
+        default?: TypeNode;
 
         // For error recovery purposes.
         expression?: Expression;
@@ -726,6 +728,7 @@
     // SyntaxKind.BindingElement
     // SyntaxKind.Property
     // SyntaxKind.PropertyAssignment
+    // SyntaxKind.JsxAttribute
     // SyntaxKind.ShorthandPropertyAssignment
     // SyntaxKind.EnumMember
     // SyntaxKind.JSDocPropertyTag
@@ -1444,7 +1447,7 @@
         template: TemplateLiteral;
     }
 
-    export type CallLikeExpression = CallExpression | NewExpression | TaggedTemplateExpression | Decorator;
+    export type CallLikeExpression = CallExpression | NewExpression | TaggedTemplateExpression | Decorator | JsxOpeningLikeElement;
 
     export interface AsExpression extends Expression {
         kind: SyntaxKind.AsExpression;
@@ -1481,35 +1484,38 @@
         closingElement: JsxClosingElement;
     }
 
+    /// Either the opening tag in a <Tag>...</Tag> pair, or the lone <Tag /> in a self-closing form
+    export type JsxOpeningLikeElement = JsxSelfClosingElement | JsxOpeningElement;
+
+    export type JsxAttributeLike = JsxAttribute | JsxSpreadAttribute;
+
     export type JsxTagNameExpression = PrimaryExpression | PropertyAccessExpression;
+
+    export interface JsxAttributes extends ObjectLiteralExpressionBase<JsxAttributeLike> {
+    }
 
     /// The opening element of a <Tag>...</Tag> JsxElement
     export interface JsxOpeningElement extends Expression {
         kind: SyntaxKind.JsxOpeningElement;
         tagName: JsxTagNameExpression;
-        attributes: NodeArray<JsxAttribute | JsxSpreadAttribute>;
+        attributes: JsxAttributes;
     }
 
     /// A JSX expression of the form <TagName attrs />
     export interface JsxSelfClosingElement extends PrimaryExpression {
         kind: SyntaxKind.JsxSelfClosingElement;
         tagName: JsxTagNameExpression;
-        attributes: NodeArray<JsxAttribute | JsxSpreadAttribute>;
+        attributes: JsxAttributes;
     }
 
-    /// Either the opening tag in a <Tag>...</Tag> pair, or the lone <Tag /> in a self-closing form
-    export type JsxOpeningLikeElement = JsxSelfClosingElement | JsxOpeningElement;
-
-    export type JsxAttributeLike = JsxAttribute | JsxSpreadAttribute;
-
-    export interface JsxAttribute extends Node {
+    export interface JsxAttribute extends ObjectLiteralElement {
         kind: SyntaxKind.JsxAttribute;
         name: Identifier;
         /// JSX attribute initializers are optional; <X y /> is sugar for <X y={true} />
         initializer?: StringLiteral | JsxExpression;
     }
 
-    export interface JsxSpreadAttribute extends Node {
+    export interface JsxSpreadAttribute extends ObjectLiteralElement {
         kind: SyntaxKind.JsxSpreadAttribute;
         expression: Expression;
     }
@@ -2420,7 +2426,7 @@
         /** Unlike `getExportsOfModule`, this includes properties of an `export =` value. */
         /* @internal */ getExportsAndPropertiesOfModule(moduleSymbol: Symbol): Symbol[];
 
-        getJsxElementAttributesType(elementNode: JsxOpeningLikeElement): Type;
+        getAllAttributesTypeFromJsxOpeningLikeElement(elementNode: JsxOpeningLikeElement): Type;
         getJsxIntrinsicTagNames(): Symbol[];
         isOptionalParameter(node: ParameterDeclaration): boolean;
         getAmbientModules(): Symbol[];
@@ -2474,6 +2480,7 @@
         // with import statements it previously saw (but chose not to emit).
         trackSymbol(symbol: Symbol, enclosingDeclaration?: Node, meaning?: SymbolFlags): void;
         reportInaccessibleThisError(): void;
+        reportIllegalExtends(): void;
     }
 
     export const enum TypeFormatFlags {
@@ -2736,6 +2743,7 @@
         isDiscriminantProperty?: boolean;   // True if discriminant synthetic property
         resolvedExports?: SymbolTable;      // Resolved exports of module
         exportsChecked?: boolean;           // True if exports of external module have been checked
+        typeParametersChecked?: boolean;    // True if type parameters of merged class and interface declarations have been checked.
         isDeclarationWithCollidingName?: boolean;    // True if symbol is block scoped redeclaration
         bindingElement?: BindingElement;    // Binding element associated with property symbol
         exportsSomeValue?: boolean;         // True if module exports some value (not just types)
@@ -2812,7 +2820,7 @@
         isVisible?: boolean;              // Is this node visible
         hasReportedStatementInAmbientContext?: boolean;  // Cache boolean if we report statements in ambient context
         jsxFlags?: JsxFlags;              // flags for knowing what kind of element/attributes we're dealing with
-        resolvedJsxType?: Type;           // resolved element attributes type of a JSX openinglike element
+        resolvedJsxElementAttributesType?: Type;  // resolved element attributes type of a JSX openinglike element
         hasSuperCall?: boolean;           // recorded result when we try to find super-call. We only try to find one if this flag is undefined, indicating that we haven't made an attempt.
         superCall?: ExpressionStatement;  // Cached first super-call found in the constructor. Used in checking whether super is called before this-accessing
         switchTypes?: Type[];             // Cached array of switch case expression types
@@ -2848,6 +2856,8 @@
         /* @internal */
         ContainsAnyFunctionType = 1 << 23,  // Type is or contains object literal type
         NonPrimitive            = 1 << 24,  // intrinsic object type
+        /* @internal */
+        JsxAttributes           = 1 << 25,  // Jsx attributes type
 
         /* @internal */
         Nullable = Undefined | Null,
@@ -3037,7 +3047,7 @@
 
     /* @internal */
     // Object literals are initially marked fresh. Freshness disappears following an assignment,
-    // before a type assertion, or when when an object literal's type is widened. The regular
+    // before a type assertion, or when  an object literal's type is widened. The regular
     // version of a fresh type is identical except for the TypeFlags.FreshObjectLiteral flag.
     export interface FreshObjectLiteralType extends ResolvedType {
         regularType: ResolvedType;  // Regular version of fresh type
@@ -3060,12 +3070,15 @@
     // Type parameters (TypeFlags.TypeParameter)
     export interface TypeParameter extends TypeVariable {
         constraint: Type;        // Constraint
+        default?: Type;
         /* @internal */
         target?: TypeParameter;  // Instantiation target
         /* @internal */
         mapper?: TypeMapper;     // Instantiation mapper
         /* @internal */
         isThisType?: boolean;
+        /* @internal */
+        resolvedDefaultType?: Type;
     }
 
     // Indexed access types (TypeFlags.IndexedAccess)
@@ -3215,7 +3228,11 @@
         NodeJs   = 2
     }
 
-    export type CompilerOptionsValue = string | number | boolean | (string | number)[] | string[] | MapLike<string[]>;
+    export interface PluginImport {
+        name: string
+    }
+
+    export type CompilerOptionsValue = string | number | boolean | (string | number)[] | string[] | MapLike<string[]> | PluginImport[];
 
     export interface CompilerOptions {
         allowJs?: boolean;
@@ -3270,6 +3287,7 @@
         outDir?: string;
         outFile?: string;
         paths?: MapLike<string[]>;
+        /*@internal*/ plugins?: PluginImport[];
         preserveConstEnums?: boolean;
         project?: string;
         /* @internal */ pretty?: DiagnosticStyle;
@@ -3353,7 +3371,8 @@
         JS = 1,
         JSX = 2,
         TS = 3,
-        TSX = 4
+        TSX = 4,
+        External = 5
     }
 
     export const enum ScriptTarget {
@@ -3428,7 +3447,7 @@
     /* @internal */
     export interface CommandLineOptionOfListType extends CommandLineOptionBase {
         type: "list";
-        element: CommandLineOptionOfCustomType | CommandLineOptionOfPrimitiveType;
+        element: CommandLineOptionOfCustomType | CommandLineOptionOfPrimitiveType | TsConfigOnlyOption;
     }
 
     /* @internal */
