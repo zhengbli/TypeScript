@@ -2184,12 +2184,14 @@ namespace ts {
             return type.flags & TypeFlags.StringLiteral ? `"${escapeString((<LiteralType>type).text)}"` : (<LiteralType>type).text;
         }
 
-
         function getNameOfSymbol(symbol: Symbol): string {
             if (symbol.declarations && symbol.declarations.length) {
                 const declaration = symbol.declarations[0];
                 if (declaration.name) {
                     return declarationNameToString(declaration.name);
+                }
+                if (declaration.parent && declaration.parent.kind === SyntaxKind.VariableDeclaration) {
+                    return declarationNameToString((<VariableDeclaration>declaration.parent).name);
                 }
                 switch (declaration.kind) {
                     case SyntaxKind.ClassExpression:
@@ -4692,7 +4694,7 @@ namespace ts {
                 // Combinations of function, class, enum and module
                 let members = emptySymbols;
                 let constructSignatures: Signature[] = emptyArray;
-                if (symbol.flags & SymbolFlags.HasExports) {
+                if (symbol.exports) {
                     members = getExportsOfSymbol(symbol);
                 }
                 if (symbol.flags & SymbolFlags.Class) {
@@ -12241,10 +12243,12 @@ namespace ts {
 
         /**
          * Get attributes type of the JSX opening-like element. The result is from resolving "attributes" property of the opening-like element.
-         * 
+         *
          * @param openingLikeElement a JSX opening-like element
          * @param filter a function to remove attributes that will not participate in checking whether attributes are assignable
          * @return an anonymous type (similar to the one returned by checkObjectLiteral) in which its properties are attributes property.
+         * @remarks Because this function calls getSpreadType, it needs to use the same checks as checkObjectLiteral,
+         * which also calls getSpreadType.
          */
         function createJsxAttributesTypeFromAttributesProperty(openingLikeElement: JsxOpeningLikeElement, filter?: (symbol: Symbol) => boolean, contextualMapper?: TypeMapper) {
             const attributes = openingLikeElement.attributes;
@@ -12256,7 +12260,7 @@ namespace ts {
                 if (isJsxAttribute(attributeDecl)) {
                     const exprType = attributeDecl.initializer ?
                         checkExpression(attributeDecl.initializer, contextualMapper) :
-                        trueType;  // <Elem attr /> is sugar for <Elem attr={true} /> 
+                        trueType;  // <Elem attr /> is sugar for <Elem attr={true} />
 
                     const attributeSymbol = <TransientSymbol>createSymbol(SymbolFlags.Property | SymbolFlags.Transient | member.flags, member.name);
                     attributeSymbol.declarations = member.declarations;
@@ -12277,7 +12281,7 @@ namespace ts {
                         attributesTable = createMap<Symbol>();
                     }
                     const exprType = checkExpression(attributeDecl.expression);
-                    if (!(exprType.flags & (TypeFlags.Object | TypeFlags.Any))) {
+                    if (!isValidSpreadType(exprType)) {
                         error(attributeDecl, Diagnostics.Spread_types_may_only_be_created_from_object_types);
                         return anyType;
                     }
@@ -14575,10 +14579,13 @@ namespace ts {
                     // in a JS file
                     // Note:JS inferred classes might come from a variable declaration instead of a function declaration.
                     // In this case, using getResolvedSymbol directly is required to avoid losing the members from the declaration.
-                    const funcSymbol = node.expression.kind === SyntaxKind.Identifier ?
+                    let funcSymbol = node.expression.kind === SyntaxKind.Identifier ?
                         getResolvedSymbol(node.expression as Identifier) :
                         checkExpression(node.expression).symbol;
-                    if (funcSymbol && funcSymbol.members && (funcSymbol.flags & SymbolFlags.Function || isDeclarationOfFunctionExpression(funcSymbol))) {
+                    if (funcSymbol && isDeclarationOfFunctionOrClassExpression(funcSymbol)) {
+                        funcSymbol = getSymbolOfNode((<VariableDeclaration>funcSymbol.valueDeclaration).initializer);
+                    }
+                    if (funcSymbol && funcSymbol.members && funcSymbol.flags & SymbolFlags.Function) {
                         return getInferredClassType(funcSymbol);
                     }
                     else if (compilerOptions.noImplicitAny) {
@@ -20627,22 +20634,29 @@ namespace ts {
             return getLeftSideOfImportEqualsOrExportAssignment(node) !== undefined;
         }
 
+        function getSpecialPropertyAssignmentSymbolFromEntityName(entityName: EntityName | PropertyAccessExpression) {
+            const specialPropertyAssignmentKind = getSpecialPropertyAssignmentKind(entityName.parent.parent);
+            switch (specialPropertyAssignmentKind) {
+                case SpecialPropertyAssignmentKind.ExportsProperty:
+                case SpecialPropertyAssignmentKind.PrototypeProperty:
+                    return getSymbolOfNode(entityName.parent);
+                case SpecialPropertyAssignmentKind.ThisProperty:
+                case SpecialPropertyAssignmentKind.ModuleExports:
+                case SpecialPropertyAssignmentKind.Property:
+                    return getSymbolOfNode(entityName.parent.parent);
+            }
+        }
+
         function getSymbolOfEntityNameOrPropertyAccessExpression(entityName: EntityName | PropertyAccessExpression): Symbol | undefined {
             if (isDeclarationName(entityName)) {
                 return getSymbolOfNode(entityName.parent);
             }
 
             if (isInJavaScriptFile(entityName) && entityName.parent.kind === SyntaxKind.PropertyAccessExpression) {
-                const specialPropertyAssignmentKind = getSpecialPropertyAssignmentKind(entityName.parent.parent);
-                switch (specialPropertyAssignmentKind) {
-                    case SpecialPropertyAssignmentKind.ExportsProperty:
-                    case SpecialPropertyAssignmentKind.PrototypeProperty:
-                        return getSymbolOfNode(entityName.parent);
-                    case SpecialPropertyAssignmentKind.ThisProperty:
-                    case SpecialPropertyAssignmentKind.ModuleExports:
-                        return getSymbolOfNode(entityName.parent.parent);
-                    default:
-                        // Fall through if it is not a special property assignment
+                // Check if this is a special property assignment
+                const specialPropertyAssignmentSymbol = getSpecialPropertyAssignmentSymbolFromEntityName(entityName);
+                if (specialPropertyAssignmentSymbol) {
+                    return specialPropertyAssignmentSymbol;
                 }
             }
 
@@ -21392,6 +21406,9 @@ namespace ts {
             const classType = <InterfaceType>getDeclaredTypeOfSymbol(getSymbolOfNode(node));
             resolveBaseTypesOfClass(classType);
             const baseType = classType.resolvedBaseTypes.length ? classType.resolvedBaseTypes[0] : unknownType;
+            if (!baseType.symbol) {
+                writer.reportIllegalExtends();
+            }
             getSymbolDisplayBuilder().buildTypeDisplay(baseType, writer, enclosingDeclaration, flags);
         }
 
