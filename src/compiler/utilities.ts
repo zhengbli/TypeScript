@@ -67,7 +67,8 @@ namespace ts {
                 decreaseIndent: noop,
                 clear: () => str = "",
                 trackSymbol: noop,
-                reportInaccessibleThisError: noop
+                reportInaccessibleThisError: noop,
+                reportIllegalExtends: noop
             };
         }
 
@@ -959,7 +960,7 @@ namespace ts {
         return false;
     }
 
-    export function unwrapInnermostStatmentOfLabel(node: LabeledStatement, beforeUnwrapLabelCallback?: (node: LabeledStatement) => void) {
+    export function unwrapInnermostStatementOfLabel(node: LabeledStatement, beforeUnwrapLabelCallback?: (node: LabeledStatement) => void) {
         while (true) {
             if (beforeUnwrapLabelCallback) {
                 beforeUnwrapLabelCallback(node);
@@ -1416,10 +1417,10 @@ namespace ts {
      * Returns true if the node is a variable declaration whose initializer is a function expression.
      * This function does not test if the node is in a JavaScript file or not.
      */
-    export function isDeclarationOfFunctionExpression(s: Symbol) {
+    export function isDeclarationOfFunctionOrClassExpression(s: Symbol) {
         if (s.valueDeclaration && s.valueDeclaration.kind === SyntaxKind.VariableDeclaration) {
             const declaration = s.valueDeclaration as VariableDeclaration;
-            return declaration.initializer && declaration.initializer.kind === SyntaxKind.FunctionExpression;
+            return declaration.initializer && (declaration.initializer.kind === SyntaxKind.FunctionExpression || declaration.initializer.kind === SyntaxKind.ClassExpression);
         }
         return false;
     }
@@ -1448,6 +1449,10 @@ namespace ts {
                 // module.exports = expr
                 return SpecialPropertyAssignmentKind.ModuleExports;
             }
+            else {
+                // F.x = expr
+                return SpecialPropertyAssignmentKind.Property;
+            }
         }
         else if (lhs.expression.kind === SyntaxKind.ThisKeyword) {
             return SpecialPropertyAssignmentKind.ThisProperty;
@@ -1466,6 +1471,7 @@ namespace ts {
                 }
             }
         }
+
 
         return SpecialPropertyAssignmentKind.None;
     }
@@ -1944,8 +1950,51 @@ namespace ts {
         return SyntaxKind.FirstTriviaToken <= token && token <= SyntaxKind.LastTriviaToken;
     }
 
-    export function isAsyncFunctionLike(node: Node): boolean {
-        return isFunctionLike(node) && hasModifier(node, ModifierFlags.Async) && !isAccessor(node);
+    export const enum FunctionFlags {
+        Normal = 0,
+        Generator = 1 << 0,
+        Async = 1 << 1,
+        AsyncOrAsyncGenerator = Async | Generator,
+        Invalid = 1 << 2,
+        InvalidAsyncOrAsyncGenerator = AsyncOrAsyncGenerator | Invalid,
+        InvalidGenerator = Generator | Invalid,
+    }
+
+    export function getFunctionFlags(node: FunctionLikeDeclaration) {
+        let flags = FunctionFlags.Normal;
+        switch (node.kind) {
+            case SyntaxKind.FunctionDeclaration:
+            case SyntaxKind.FunctionExpression:
+            case SyntaxKind.MethodDeclaration:
+                if (node.asteriskToken) {
+                    flags |= FunctionFlags.Generator;
+                }
+                // fall through
+            case SyntaxKind.ArrowFunction:
+                if (hasModifier(node, ModifierFlags.Async)) {
+                    flags |= FunctionFlags.Async;
+                }
+                break;
+        }
+
+        if (!node.body) {
+            flags |= FunctionFlags.Invalid;
+        }
+
+        return flags;
+    }
+
+    export function isAsyncFunction(node: Node): boolean {
+        switch (node.kind) {
+            case SyntaxKind.FunctionDeclaration:
+            case SyntaxKind.FunctionExpression:
+            case SyntaxKind.ArrowFunction:
+            case SyntaxKind.MethodDeclaration:
+                return (<FunctionLikeDeclaration>node).body !== undefined
+                    && (<FunctionLikeDeclaration>node).asteriskToken === undefined
+                    && hasModifier(node, ModifierFlags.Async);
+        }
+        return false;
     }
 
     export function isStringOrNumericLiteral(node: Node): node is StringLiteral | NumericLiteral {
@@ -3750,6 +3799,12 @@ namespace ts {
         return node.kind === SyntaxKind.PropertyAccessExpression;
     }
 
+    export function isPropertyAccessOrQualifiedName(node: Node): node is PropertyAccessExpression | QualifiedName {
+        const kind = node.kind;
+        return kind === SyntaxKind.PropertyAccessExpression
+            || kind === SyntaxKind.QualifiedName;
+    }
+
     export function isElementAccessExpression(node: Node): node is ElementAccessExpression {
         return node.kind === SyntaxKind.ElementAccessExpression;
     }
@@ -4100,14 +4155,16 @@ namespace ts {
         return node.kind === SyntaxKind.JsxAttribute;
     }
 
-    export function isJsxOpeningLikeElement(node: Node): node is JsxOpeningLikeElement {
-        return node.kind === SyntaxKind.JsxOpeningElement || node.kind === SyntaxKind.JsxSelfClosingElement;
-    }
-
     export function isStringLiteralOrJsxExpression(node: Node): node is StringLiteral | JsxExpression {
         const kind = node.kind;
         return kind === SyntaxKind.StringLiteral
             || kind === SyntaxKind.JsxExpression;
+    }
+
+    export function isJsxOpeningLikeElement(node: Node): node is JsxOpeningLikeElement {
+        const kind = node.kind;
+        return kind === SyntaxKind.JsxOpeningElement
+            || kind === SyntaxKind.JsxSelfClosingElement;
     }
 
     // Clauses
@@ -4164,7 +4221,6 @@ namespace ts {
                 return "lib.es2016.d.ts";
             case ScriptTarget.ES2015:
                 return "lib.es6.d.ts";
-
             default:
                 return "lib.d.ts";
         }
@@ -4560,7 +4616,7 @@ namespace ts {
      */
     export function getParseTreeNode<T extends Node>(node: Node, nodeTest?: (node: Node) => node is T): T;
     export function getParseTreeNode(node: Node, nodeTest?: (node: Node) => boolean): Node {
-        if (isParseTreeNode(node)) {
+        if (node == undefined || isParseTreeNode(node)) {
             return node;
         }
 
