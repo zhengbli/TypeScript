@@ -190,6 +190,9 @@ namespace ts.server {
         /* @internal */
         export const GetCodeFixesFull: protocol.CommandTypes.GetCodeFixesFull = "getCodeFixes-full";
         export const GetSupportedCodeFixes: protocol.CommandTypes.GetSupportedCodeFixes = "getSupportedCodeFixes";
+
+        export const GetApplicableRefactors: protocol.CommandTypes.GetApplicableRefactors = "getApplicableRefactors";
+        export const GetCodeActionsOfRefactor: protocol.CommandTypes.GetCodeActionsOfRefactor = "getCodeActionsOfRefactor";
     }
 
     export function formatMessage<T extends protocol.Message>(msg: T, logger: server.Logger, byteLength: (s: string, encoding: string) => number, newLine: string): string {
@@ -479,6 +482,18 @@ namespace ts.server {
             }
         }
 
+        private getRefactorSuggestions(file: NormalizedPath, project: Project) {
+            try {
+                const suggestions = project.getLanguageService().getRefactorSuggestions(file);
+                if (suggestions) {
+                    
+                }
+            }
+            catch (err) {
+                this.logError(err, "get applicable refactors");
+            }
+        }
+
         private updateProjectStructure(seq: number, matchSeq: (seq: number) => boolean, ms = 1500) {
             this.host.setTimeout(() => {
                 if (matchSeq(seq)) {
@@ -499,8 +514,9 @@ namespace ts.server {
                     index++;
                     if (checkSpec.project.containsFile(checkSpec.fileName, requireOpen)) {
                         this.syntacticCheck(checkSpec.fileName, checkSpec.project);
+                        next.immediate(() => this.semanticCheck(checkSpec.fileName, checkSpec.project));
                         next.immediate(() => {
-                            this.semanticCheck(checkSpec.fileName, checkSpec.project);
+                            this.getRefactorSuggestions(checkSpec.fileName, checkSpec.project);
                             if (checkList.length > index) {
                                 next.delay(followMs, checkOne);
                             }
@@ -1411,6 +1427,29 @@ namespace ts.server {
             return ts.getSupportedCodeFixes();
         }
 
+        private extractStartAndEndPositionFromTextRangeRequestArgs(args: protocol.TextRangeRequestArgs, scriptInfo: ScriptInfo): { startPosition: number, endPosition: number } {
+            const startPosition = getStartPosition();
+            const endPosition = getEndPosition();
+            return { startPosition, endPosition };
+
+            function getStartPosition() {
+                return args.startPosition !== undefined ? args.startPosition : scriptInfo.lineOffsetToPosition(args.startLine, args.startOffset);
+            }
+
+            function getEndPosition() {
+                return args.endPosition !== undefined ? args.endPosition : scriptInfo.lineOffsetToPosition(args.endLine, args.endOffset);
+            }
+        }
+
+        private getApplicableRefactors(args: protocol.GetApplicableRefactorsRequestArgs): protocol.RefactorInfo[] {
+            const { file, project } = this.getFileAndProjectWithoutRefreshingInferredProjects(args);
+            const scriptInfo = project.getScriptInfoForNormalizedPath(file);
+            const { startPosition, endPosition } = this.extractStartAndEndPositionFromTextRangeRequestArgs(args, scriptInfo);
+
+            const refactors = project.getLanguageService().getApplicableRefactorsAtPosition(file, startPosition, endPosition);
+            return map(refactors, refactor => { return { text: refactor.description, code: refactor.refactorCode }; });
+        }
+
         private getCodeFixes(args: protocol.CodeFixRequestArgs, simplifiedResult: boolean): protocol.CodeAction[] | CodeAction[] {
             if (args.errorCodes.length === 0) {
                 return undefined;
@@ -1418,8 +1457,7 @@ namespace ts.server {
             const { file, project } = this.getFileAndProjectWithoutRefreshingInferredProjects(args);
 
             const scriptInfo = project.getScriptInfoForNormalizedPath(file);
-            const startPosition = getStartPosition();
-            const endPosition = getEndPosition();
+            const { startPosition, endPosition } = this.extractStartAndEndPositionFromTextRangeRequestArgs(args, scriptInfo);
 
             const codeActions = project.getLanguageService().getCodeFixesAtPosition(file, startPosition, endPosition, args.errorCodes);
             if (!codeActions) {
@@ -1430,14 +1468,6 @@ namespace ts.server {
             }
             else {
                 return codeActions;
-            }
-
-            function getStartPosition() {
-                return args.startPosition !== undefined ? args.startPosition : scriptInfo.lineOffsetToPosition(args.startLine, args.startOffset);
-            }
-
-            function getEndPosition() {
-                return args.endPosition !== undefined ? args.endPosition : scriptInfo.lineOffsetToPosition(args.endLine, args.endOffset);
             }
         }
 
@@ -1771,6 +1801,9 @@ namespace ts.server {
             },
             [CommandNames.GetSupportedCodeFixes]: () => {
                 return this.requiredResponse(this.getSupportedCodeFixes());
+            },
+            [CommandNames.GetApplicableRefactors]: (request: protocol.GetApplicableRefactorsRequest) => {
+                return this.requiredResponse(this.getApplicableRefactors(request.arguments));
             }
         });
 

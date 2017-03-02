@@ -25,6 +25,7 @@
 /// <reference path='formatting\formatting.ts' />
 /// <reference path='formatting\smartIndenter.ts' />
 /// <reference path='codeFixProvider.ts' />
+/// <reference path='refactorProvider.ts' />
 /// <reference path='codefixes\fixes.ts' />
 
 namespace ts {
@@ -1898,12 +1899,19 @@ namespace ts {
             return Rename.getRenameInfo(program.getTypeChecker(), defaultLibFileName, getCanonicalFileName, getValidSourceFile(fileName), position);
         }
 
+        function getApplicableRefactorsAtPosition(fileName: string, start: number, end: number): Refactor[] {
+            synchronizeHostData();
+            const sourceFile = getSourceFile(fileName);
+            return refactor.getApplicableRefactorsAtPosition(sourceFile, start, end);
+        }
+
         return {
             dispose,
             cleanupSemanticCache,
             getSyntacticDiagnostics,
             getSemanticDiagnostics,
             getCompilerOptionsDiagnostics,
+            getApplicableRefactorsAtPosition,
             getSyntacticClassifications,
             getSemanticClassifications,
             getEncodedSyntacticClassifications,
