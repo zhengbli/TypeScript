@@ -1903,42 +1903,44 @@ namespace ts {
         function getRefactorDiagnostics(fileName: string, range?: TextRange): RefactorDiagnostic[] {
             synchronizeHostData();
             const sourceFile = getSourceFile(fileName);
+            const program = getProgram();
+            const refactorContext: RefactorContext = {
+                sourceFile,
+                newLineCharacter: host.getNewLine(),
+                program
+            };
 
             if (range) {
-                const applicableRefactors = refactor.getApplicableRefactorsForRange(sourceFile, range);
-                return map(applicableRefactors, refactor => {
-                    return <RefactorDiagnostic> {
-                        code: refactor.refactorCode,
-                        end: range.end,
-                        start: range.pos,
-                        file: sourceFile,
-                        text: refactor.description                        
-                    };
-                })
+                const applicableRefactors = refactor.getApplicableRefactorsForRange(sourceFile, refactorContext);
+                return map(applicableRefactors, refactor => createRefactorDiagnostic(refactor, range));
             }
 
-            const result: RefactorDiagnostic[] = [];
             // if no range was provided, we only check for refactors that can be suggested.
-            // because for things like "extract method", it is meaningless to proactively check
+            // Because for things like "extract method", it is meaningless to eagerly check
             // the entire file.
             const refactors = refactor.getSuggestableRefactors();
+            const result: RefactorDiagnostic[] = [];
 
             forEachChild(sourceFile, visitor);
             return result;
 
             function visitor(node: Node): void {
                 for (const refactor of refactors) {
-                    if (refactor.isApplicableForRange(sourceFile, node)) {
-                        result.push(<RefactorDiagnostic>{
-                            code: refactor.refactorCode,
-                            file: sourceFile,
-                            start: node.pos,
-                            end: node.end,
-                            text: refactor.description
-                        });
+                    if (refactor.isApplicableForNode(node, refactorContext)) {
+                        result.push(createRefactorDiagnostic(refactor, node));
                     }
                 }
                 forEachChild(node, visitor);
+            }
+
+            function createRefactorDiagnostic(refactor: Refactor, range: TextRange) {
+                return <RefactorDiagnostic>{
+                    code: refactor.refactorCode,
+                    file: sourceFile,
+                    start: range.pos,
+                    end: range.end,
+                    text: refactor.description
+                }
             }
         }
 
