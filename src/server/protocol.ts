@@ -96,8 +96,8 @@ namespace ts.server.protocol {
         export type GetCodeFixesFull = "getCodeFixes-full";
         export type GetSupportedCodeFixes = "getSupportedCodeFixes";
 
-        export type GetApplicableRefactors = "getApplicableRefactors";
-        export type GetCodeActionsOfRefactor = "getCodeActionsOfRefactor";
+        export type GetRefactorsForRange = "getRefactorsForRange";
+        export type GetCodeActionsForRefactor = "getCodeActionsForRefactor";
     }
 
     /**
@@ -398,18 +398,12 @@ namespace ts.server.protocol {
     }
 
     /**
-     * Each RefactorInfo entry indicates an applicable refactor at the given position.
-     */
-    export interface RefactorInfo {
-        text: string;
-        code: number;
-    }
-
-    /**
      * An diagnostic information suggesting refactors at applicable positions without
      * clients asking.
      */
-    export interface RefactorSuggestion extends RefactorInfo {
+    export interface RefactorDiagnostic {
+        text: string;
+        code: number;
         start: Location;
         end: Location;
     }
@@ -418,32 +412,32 @@ namespace ts.server.protocol {
      * Returns a list of applicable refactors at a given position. This request does not actually
      * compute the refactors; instead it goes through faster syntactic checks to determine what is possible.
      */
-    export interface GetApplicableRefactorsRequest extends Request {
-        command: CommandTypes.GetApplicableRefactors;
-        arguments: GetApplicableRefactorsRequestArgs;
+    export interface GetRefactorsForRangeRequest extends Request {
+        command: CommandTypes.GetRefactorsForRange;
+        arguments: GetRefactorsForRangeRequestArgs;
     }
 
-    export interface GetApplicableRefactorsRequestArgs extends TextRangeRequestArgs {
+    export interface GetRefactorsForRangeRequestArgs extends TextRangeRequestArgs {
     }
 
-    export interface GetApplicableRefactorsResponse extends Response {
-        body?: RefactorInfo[];
+    export interface GetRefactorsForRangeResponse extends Response {
+        body?: RefactorDiagnostic[];
     }
 
     /**
      * Computes the code actions for a given refactor. This is normally called after the user commited one
      * of the applicable refactors provided by the "GetApplicableRefactors" API.
      */
-    export interface GetCodeActionsOfRefactorRequest extends Request {
-        command: CommandTypes.GetCodeActionsOfRefactor;
-        arguments: GetCodeActionsOfRefactorRequestArgs;
+    export interface GetCodeActionsForRefactorRequest extends Request {
+        command: CommandTypes.GetCodeActionsForRefactor;
+        arguments: GetCodeActionsForRefactorRequestArgs;
     }
 
-    export interface GetCodeActionsOfRefactorRequestArgs extends GetApplicableRefactorsRequestArgs {
+    export interface GetCodeActionsForRefactorRequestArgs extends GetRefactorsForRangeRequestArgs {
         refactorCode: number;
     }
 
-    export interface GetCodeActionsOfRefactorResponse extends Response {
+    export interface GetCodeActionsForRefactorResponse extends Response {
         body?: CodeAction[];
     }
 

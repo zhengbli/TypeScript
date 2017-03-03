@@ -8,7 +8,8 @@ namespace ts {
         refactorCode: number;
 
         /** A fast syntactic check to see if the refactor is applicable at given position */
-        isApplicableAtPosition(sourceFile: SourceFile, start: number, end: number): boolean;
+        isApplicableForRange(sourceFile: SourceFile, range: TextRange): boolean;
+        isApplicableForNode(node: Node): boolean;
 
         /** Compute the associated code actions */
         getCodeActions(context: RefactorContext): CodeAction[];
@@ -30,29 +31,33 @@ namespace ts {
     export namespace refactor {
         // A map with the refactor code as key, the refactor itself as value
         const registeredRefactors: Refactor[] = [];
+        let suggestableRefactors: Refactor[];
 
         export function registerRefactor(refactor: Refactor) {
             registeredRefactors[refactor.refactorCode] = refactor;
         }
 
-        export function getSupportedRefactorCodes() {
-            return Object.keys(registeredRefactors);
-        }
-
-        export function getApplicableRefactorsAtPosition(sourceFile: SourceFile, start: number, end: number) {
+        export function getApplicableRefactorsForRange(sourceFile: SourceFile, range: TextRange) {
             const results: Refactor[] = [];
             for (const code in registeredRefactors) {
                 const refactor = registeredRefactors[code];
-                if (refactor.isApplicableAtPosition(sourceFile, start, end)) {
+                if (refactor.isApplicableForRange(sourceFile, range)) {
                     results.push(refactor);
                 }
             }
             return results;
         }
 
-        export function getCodeActionsOfRefactor(context: RefactorContext): CodeAction[] {
+        export function getCodeActionsForRefactor(context: RefactorContext): CodeAction[] {
             const refactor = registeredRefactors[context.refactorCode];
             return refactor.getCodeActions(context);
+        }
+
+        export function getSuggestableRefactors() {
+            if (!suggestableRefactors) {
+                suggestableRefactors = filter(registeredRefactors, r => r.canBeSuggested);
+            }
+            return suggestableRefactors;
         }
     }
 }

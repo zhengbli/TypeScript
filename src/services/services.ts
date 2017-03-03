@@ -27,6 +27,7 @@
 /// <reference path='codeFixProvider.ts' />
 /// <reference path='refactorProvider.ts' />
 /// <reference path='codefixes\fixes.ts' />
+/// <reference path='refactors\refactors.ts' />
 
 namespace ts {
     /** The version of the language service API */
@@ -1899,10 +1900,46 @@ namespace ts {
             return Rename.getRenameInfo(program.getTypeChecker(), defaultLibFileName, getCanonicalFileName, getValidSourceFile(fileName), position);
         }
 
-        function getApplicableRefactorsAtPosition(fileName: string, start: number, end: number): Refactor[] {
+        function getRefactorDiagnostics(fileName: string, range?: TextRange): RefactorDiagnostic[] {
             synchronizeHostData();
             const sourceFile = getSourceFile(fileName);
-            return refactor.getApplicableRefactorsAtPosition(sourceFile, start, end);
+
+            if (range) {
+                const applicableRefactors = refactor.getApplicableRefactorsForRange(sourceFile, range);
+                return map(applicableRefactors, refactor => {
+                    return <RefactorDiagnostic> {
+                        code: refactor.refactorCode,
+                        end: range.end,
+                        start: range.pos,
+                        file: sourceFile,
+                        text: refactor.description                        
+                    };
+                })
+            }
+
+            const result: RefactorDiagnostic[] = [];
+            // if no range was provided, we only check for refactors that can be suggested.
+            // because for things like "extract method", it is meaningless to proactively check
+            // the entire file.
+            const refactors = refactor.getSuggestableRefactors();
+
+            forEachChild(sourceFile, visitor);
+            return result;
+
+            function visitor(node: Node): void {
+                for (const refactor of refactors) {
+                    if (refactor.isApplicableForRange(sourceFile, node)) {
+                        result.push(<RefactorDiagnostic>{
+                            code: refactor.refactorCode,
+                            file: sourceFile,
+                            start: node.pos,
+                            end: node.end,
+                            text: refactor.description
+                        });
+                    }
+                }
+                forEachChild(node, visitor);
+            }
         }
 
         return {
@@ -1910,8 +1947,8 @@ namespace ts {
             cleanupSemanticCache,
             getSyntacticDiagnostics,
             getSemanticDiagnostics,
+            getRefactorDiagnostics,
             getCompilerOptionsDiagnostics,
-            getApplicableRefactorsAtPosition,
             getSyntacticClassifications,
             getSemanticClassifications,
             getEncodedSyntacticClassifications,

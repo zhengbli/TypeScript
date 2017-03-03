@@ -191,8 +191,8 @@ namespace ts.server {
         export const GetCodeFixesFull: protocol.CommandTypes.GetCodeFixesFull = "getCodeFixes-full";
         export const GetSupportedCodeFixes: protocol.CommandTypes.GetSupportedCodeFixes = "getSupportedCodeFixes";
 
-        export const GetApplicableRefactors: protocol.CommandTypes.GetApplicableRefactors = "getApplicableRefactors";
-        export const GetCodeActionsOfRefactor: protocol.CommandTypes.GetCodeActionsOfRefactor = "getCodeActionsOfRefactor";
+        export const GetRefactorsForRange: protocol.CommandTypes.GetRefactorsForRange = "getRefactorsForRange";
+        export const GetCodeActionsForRefactor: protocol.CommandTypes.GetCodeActionsForRefactor = "getCodeActionsForRefactor";
     }
 
     export function formatMessage<T extends protocol.Message>(msg: T, logger: server.Logger, byteLength: (s: string, encoding: string) => number, newLine: string): string {
@@ -482,18 +482,6 @@ namespace ts.server {
             }
         }
 
-        private getRefactorSuggestions(file: NormalizedPath, project: Project) {
-            try {
-                const suggestions = project.getLanguageService().getRefactorSuggestions(file);
-                if (suggestions) {
-                    
-                }
-            }
-            catch (err) {
-                this.logError(err, "get applicable refactors");
-            }
-        }
-
         private updateProjectStructure(seq: number, matchSeq: (seq: number) => boolean, ms = 1500) {
             this.host.setTimeout(() => {
                 if (matchSeq(seq)) {
@@ -516,7 +504,7 @@ namespace ts.server {
                         this.syntacticCheck(checkSpec.fileName, checkSpec.project);
                         next.immediate(() => this.semanticCheck(checkSpec.fileName, checkSpec.project));
                         next.immediate(() => {
-                            this.getRefactorSuggestions(checkSpec.fileName, checkSpec.project);
+                            this.getRefactorDiagnostics(checkSpec.fileName, checkSpec.project);
                             if (checkList.length > index) {
                                 next.delay(followMs, checkOne);
                             }
@@ -1441,13 +1429,31 @@ namespace ts.server {
             }
         }
 
-        private getApplicableRefactors(args: protocol.GetApplicableRefactorsRequestArgs): protocol.RefactorInfo[] {
+        private normalizeRefactorDiagnostics(refactorDiags: RefactorDiagnostic[], scriptInfo: ScriptInfo): protocol.RefactorDiagnostic[] {
+            return map(refactorDiags, refactorDiag => {
+                return <protocol.RefactorDiagnostic>{
+                    code: refactorDiag.code,
+                    text: refactorDiag.text,
+                    start: scriptInfo.positionToLineOffset(refactorDiag.start),
+                    end: scriptInfo.positionToLineOffset(refactorDiag.end)
+                };
+            })
+        }
+
+        private getRefactorDiagnostics(file: NormalizedPath, project: Project): protocol.RefactorDiagnostic[] {
+            const scriptInfo = project.getScriptInfoForNormalizedPath(file);
+            const refactorDiags = project.getLanguageService().getRefactorDiagnostics(file);
+            return this.normalizeRefactorDiagnostics(refactorDiags, scriptInfo);
+        }
+
+        private getRefactorDiagnosticsForRange(args: protocol.GetRefactorsForRangeRequestArgs): protocol.RefactorDiagnostic[] {
             const { file, project } = this.getFileAndProjectWithoutRefreshingInferredProjects(args);
             const scriptInfo = project.getScriptInfoForNormalizedPath(file);
             const { startPosition, endPosition } = this.extractStartAndEndPositionFromTextRangeRequestArgs(args, scriptInfo);
 
-            const refactors = project.getLanguageService().getApplicableRefactorsAtPosition(file, startPosition, endPosition);
-            return map(refactors, refactor => { return { text: refactor.description, code: refactor.refactorCode }; });
+            const range = <TextRange>{ pos: startPosition, end: endPosition };
+            const refactorDiags = project.getLanguageService().getRefactorDiagnostics(file, range);
+            return this.normalizeRefactorDiagnostics(refactorDiags, scriptInfo);
         }
 
         private getCodeFixes(args: protocol.CodeFixRequestArgs, simplifiedResult: boolean): protocol.CodeAction[] | CodeAction[] {
@@ -1802,8 +1808,8 @@ namespace ts.server {
             [CommandNames.GetSupportedCodeFixes]: () => {
                 return this.requiredResponse(this.getSupportedCodeFixes());
             },
-            [CommandNames.GetApplicableRefactors]: (request: protocol.GetApplicableRefactorsRequest) => {
-                return this.requiredResponse(this.getApplicableRefactors(request.arguments));
+            [CommandNames.GetRefactorsForRange]: (request: protocol.GetRefactorsForRangeRequest) => {
+                return this.requiredResponse(this.getRefactorDiagnosticsForRange(request.arguments));
             }
         });
 
