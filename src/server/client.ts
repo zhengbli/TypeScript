@@ -692,6 +692,32 @@ namespace ts.server {
             return response.body.map(entry => this.convertCodeActions(entry, fileName));
         }
 
+        getRefactorDiagnostics(fileName: string, range?: TextRange): RefactorDiagnostic[] {
+            const startLineOffset = this.positionToOneBasedLineOffset(fileName, range.pos);
+            const endLineOffset = this.positionToOneBasedLineOffset(fileName, range.end);
+
+            const args: protocol.GetRefactorsForRangeRequestArgs = {
+                file: fileName,
+                startLine: startLineOffset.line,
+                startOffset: startLineOffset.offset,
+                endLine: endLineOffset.line,
+                endOffset: endLineOffset.offset,
+            };
+
+            const request = this.processRequest<protocol.GetRefactorsForRangeRequest>(CommandNames.GetRefactorsForRange, args);
+            const response = this.processResponse<protocol.GetRefactorsForRangeResponse>(request);
+
+            return response.body.map(entry => {
+                return <RefactorDiagnostic>{
+                    fileName,
+                    code: entry.code,
+                    end: this.lineOffsetToPosition(fileName, entry.end),
+                    start: this.lineOffsetToPosition(fileName, entry.start),
+                    text: entry.text
+                };
+            });
+        }
+
         convertCodeActions(entry: protocol.CodeAction, fileName: string): CodeAction {
             return {
                 description: entry.description,
@@ -701,6 +727,8 @@ namespace ts.server {
                 }))
             };
         }
+
+        
 
         convertTextChangeToCodeEdit(change: protocol.CodeEdit, fileName: string): ts.TextChange {
             const start = this.lineOffsetToPosition(fileName, change.start);

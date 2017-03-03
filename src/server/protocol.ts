@@ -408,6 +408,11 @@ namespace ts.server.protocol {
         end: Location;
     }
 
+    export interface RefactorDiagnosticEventBody {
+        file: string;
+        diagnostics: RefactorDiagnostic[];
+    }
+
     /**
      * Returns a list of applicable refactors at a given position. This request does not actually
      * compute the refactors; instead it goes through faster syntactic checks to determine what is possible.

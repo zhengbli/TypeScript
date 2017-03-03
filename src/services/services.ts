@@ -1936,7 +1936,7 @@ namespace ts {
             function createRefactorDiagnostic(refactor: Refactor, range: TextRange) {
                 return <RefactorDiagnostic>{
                     code: refactor.refactorCode,
-                    file: sourceFile,
+                    fileName: sourceFile.fileName,
                     start: range.pos,
                     end: range.end,
                     text: refactor.description
