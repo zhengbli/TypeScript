@@ -8,8 +8,8 @@ namespace ts {
         refactorCode: number;
 
         /** A fast syntactic check to see if the refactor is applicable at given position */
-        isApplicableForRange(sourceFile: SourceFile, range: TextRange): boolean;
-        isApplicableForNode(node: Node): boolean;
+        isApplicableForRange(range: TextRange, context: RefactorContext): boolean;
+        isApplicableForNode(node: Node, context: RefactorContext): boolean;
 
         /** Compute the associated code actions */
         getCodeActions(context: RefactorContext): CodeAction[];
@@ -19,13 +19,9 @@ namespace ts {
     }
     
     export interface RefactorContext {
-        refactorCode: number;
         sourceFile: SourceFile;
-        span: TextSpan;
         program: Program;
         newLineCharacter: string;
-        host: LanguageServiceHost;
-        cancellationToken: CancellationToken;
     }
 
     export namespace refactor {
@@ -37,19 +33,19 @@ namespace ts {
             registeredRefactors[refactor.refactorCode] = refactor;
         }
 
-        export function getApplicableRefactorsForRange(sourceFile: SourceFile, range: TextRange) {
+        export function getApplicableRefactorsForRange(range: TextRange, context: RefactorContext) {
             const results: Refactor[] = [];
             for (const code in registeredRefactors) {
                 const refactor = registeredRefactors[code];
-                if (refactor.isApplicableForRange(sourceFile, range)) {
+                if (refactor.isApplicableForRange(range, context)) {
                     results.push(refactor);
                 }
             }
             return results;
         }
 
-        export function getCodeActionsForRefactor(context: RefactorContext): CodeAction[] {
-            const refactor = registeredRefactors[context.refactorCode];
+        export function getCodeActionsForRefactor(refactorCode: number, context: RefactorContext): CodeAction[] {
+            const refactor = registeredRefactors[refactorCode];
             return refactor.getCodeActions(context);
         }
 
