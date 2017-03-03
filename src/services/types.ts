@@ -343,7 +343,7 @@ namespace ts {
     }
 
     export interface RefactorDiagnostic {
-        file: SourceFile;
+        fileName: string;
         start: number;
         end: number;
         text: string;

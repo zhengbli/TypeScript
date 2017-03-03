@@ -85,7 +85,7 @@ namespace ts.server {
     }
 
     export interface EventSender {
-        event(payload: any, eventName: string): void;
+        event<T>(payload: T, eventName: string): void;
     }
 
     function allEditsBeforePos(edits: ts.TextChange[], pos: number) {
@@ -383,7 +383,7 @@ namespace ts.server {
                     break;
                 case ProjectLanguageServiceStateEvent:
                     const eventName: protocol.ProjectLanguageServiceStateEventName = "projectLanguageServiceState";
-                    this.event(<protocol.ProjectLanguageServiceStateEventBody>{
+                    this.event<protocol.ProjectLanguageServiceStateEventBody>({
                         projectName: event.data.project.getProjectName(),
                         languageServiceEnabled: event.data.languageServiceEnabled
                     }, eventName);
@@ -427,7 +427,7 @@ namespace ts.server {
             this.send(ev);
         }
 
-        public event(info: any, eventName: string) {
+        public event<T>(info: T, eventName: string) {
             const ev: protocol.Event = {
                 seq: 0,
                 type: "event",
@@ -462,7 +462,7 @@ namespace ts.server {
                 }
 
                 const bakedDiags = diags.map((diag) => formatDiag(file, project, diag));
-                this.event({ file: file, diagnostics: bakedDiags }, "semanticDiag");
+                this.event<protocol.DiagnosticEventBody>({ file: file, diagnostics: bakedDiags }, "semanticDiag");
             }
             catch (err) {
                 this.logError(err, "semantic check");
@@ -474,7 +474,7 @@ namespace ts.server {
                 const diags = project.getLanguageService().getSyntacticDiagnostics(file);
                 if (diags) {
                     const bakedDiags = diags.map((diag) => formatDiag(file, project, diag));
-                    this.event({ file: file, diagnostics: bakedDiags }, "syntaxDiag");
+                    this.event<protocol.DiagnosticEventBody>({ file: file, diagnostics: bakedDiags }, "syntaxDiag");
                 }
             }
             catch (err) {
@@ -504,7 +504,7 @@ namespace ts.server {
                         this.syntacticCheck(checkSpec.fileName, checkSpec.project);
                         next.immediate(() => this.semanticCheck(checkSpec.fileName, checkSpec.project));
                         next.immediate(() => {
-                            this.getRefactorDiagnostics(checkSpec.fileName, checkSpec.project);
+                            this.checkRefactorDiagnostics(checkSpec.fileName, checkSpec.project);
                             if (checkList.length > index) {
                                 next.delay(followMs, checkOne);
                             }
@@ -1440,10 +1440,12 @@ namespace ts.server {
             })
         }
 
-        private getRefactorDiagnostics(file: NormalizedPath, project: Project): protocol.RefactorDiagnostic[] {
+        private checkRefactorDiagnostics(file: NormalizedPath, project: Project): void {
             const scriptInfo = project.getScriptInfoForNormalizedPath(file);
             const refactorDiags = project.getLanguageService().getRefactorDiagnostics(file);
-            return this.normalizeRefactorDiagnostics(refactorDiags, scriptInfo);
+            const normalizedDiags = this.normalizeRefactorDiagnostics(refactorDiags, scriptInfo);
+
+            this.event<protocol.RefactorDiagnosticEventBody>({ file, diagnostics: normalizedDiags }, "refactorDiag");
         }
 
         private getRefactorDiagnosticsForRange(args: protocol.GetRefactorsForRangeRequestArgs): protocol.RefactorDiagnostic[] {

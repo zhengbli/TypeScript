@@ -3489,6 +3489,29 @@ namespace ts.projectSystem {
         });
     });
 
+    describe("generate refactor diagnostics", () => {
+        it("should work for class-like function declaration", () => {
+            const file1: FileOrFolder = {
+                path: "/a/b/file1.js",
+                content: 
+                `
+                function foo() {}
+                foo.prototype.getName = function () { return "foo"; };
+                `
+            };
+            
+            const host = createServerHost([file1]);
+            const projectService = createProjectService(host);
+            const session = createSession(host, /*typingsInstaller*/ undefined, event => {
+                if (event.eventName === "refactorDiag") {
+                    
+                }
+            });
+            const response = session.executeCommand(<>)
+            projectService.openClientFile(file1.path);
+        });
+    });
+
     describe("maxNodeModuleJsDepth for inferred projects", () => {
         it("should be set to 2 if the project has js root files", () => {
             const file1: FileOrFolder = {
