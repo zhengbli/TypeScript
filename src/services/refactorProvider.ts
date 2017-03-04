@@ -8,7 +8,7 @@ namespace ts {
         refactorCode: number;
 
         /** Compute the associated code actions */
-        getCodeActions(diagnostic: RefactorDiagnostic, context: RefactorContext): CodeAction[];
+        getCodeActions(range: TextRange, context: RefactorContext): CodeAction[];
     }
 
     export interface SuggestableRefactor extends BaseRefactor {
@@ -34,6 +34,7 @@ namespace ts {
         boundSourceFile: SourceFile;
         program: Program;
         newLineCharacter: string;
+        rulesProvider: formatting.RulesProvider;
     }
 
     export namespace refactor {
@@ -83,9 +84,9 @@ namespace ts {
             };
         }
 
-        export function getCodeActionsForRefactor(diagnostic: RefactorDiagnostic, context: RefactorContext): CodeAction[] {
-            const refactor = suggestableRefactors[diagnostic.code] || nonSuggestableRefactors[diagnostic.code];
-            return refactor && refactor.getCodeActions(diagnostic, context);
+        export function getCodeActionsForRefactor(refactorCode: number, range: TextRange, context: RefactorContext): CodeAction[] {
+            const refactor = suggestableRefactors[refactorCode] || nonSuggestableRefactors[refactorCode];
+            return refactor && refactor.getCodeActions(range, context);
         }
     }
 }

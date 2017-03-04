@@ -222,7 +222,7 @@ namespace ts.server {
         getCurrentRequestId(): number;
         sendRequestCompletedEvent(requestId: number): void;
         getServerHost(): ServerHost;
-        isCancellationRequested():  boolean;
+        isCancellationRequested(): boolean;
         executeWithRequestId(requestId: number, action: () => void): void;
         logError(error: Error, message: string): void;
     }
@@ -303,7 +303,7 @@ namespace ts.server {
             }
         }
 
-        private setTimerHandle(timerHandle: any) {;
+        private setTimerHandle(timerHandle: any) {
             if (this.timerHandle !== undefined) {
                 this.operationHost.getServerHost().clearTimeout(this.timerHandle);
             }
@@ -504,10 +504,12 @@ namespace ts.server {
                         this.syntacticCheck(checkSpec.fileName, checkSpec.project);
                         next.immediate(() => {
                             this.semanticCheck(checkSpec.fileName, checkSpec.project);
-                            this.checkRefactorDiagnostics(checkSpec.fileName, checkSpec.project);
-                            if (checkList.length > index) {
-                                next.delay(followMs, checkOne);
-                            }
+                            next.immediate(() => {
+                                this.checkRefactorDiagnostics(checkSpec.fileName, checkSpec.project);
+                                if (checkList.length > index) {
+                                    next.delay(followMs, checkOne);
+                                }
+                            })
                         });
                     }
                 }
@@ -1300,8 +1302,8 @@ namespace ts.server {
             return !items
                 ? undefined
                 : simplifiedResult
-                ? this.decorateNavigationBarItems(items, project.getScriptInfoForNormalizedPath(file))
-                : items;
+                    ? this.decorateNavigationBarItems(items, project.getScriptInfoForNormalizedPath(file))
+                    : items;
         }
 
         private decorateNavigationTree(tree: ts.NavigationTree, scriptInfo: ScriptInfo): protocol.NavigationTree {
@@ -1327,8 +1329,8 @@ namespace ts.server {
             return !tree
                 ? undefined
                 : simplifiedResult
-                ? this.decorateNavigationTree(tree, project.getScriptInfoForNormalizedPath(file))
-                : tree;
+                    ? this.decorateNavigationTree(tree, project.getScriptInfoForNormalizedPath(file))
+                    : tree;
         }
 
         private getNavigateToItems(args: protocol.NavtoRequestArgs, simplifiedResult: boolean): protocol.NavtoItem[] | NavigateToItem[] {
@@ -1458,6 +1460,21 @@ namespace ts.server {
             return this.normalizeRefactorDiagnostics(refactorDiags, scriptInfo);
         }
 
+        private getCodeActionsForRefactorDiagnostic(args: protocol.GetCodeActionsForRefactorRequestArgs): protocol.CodeAction[] {
+            const { file, project } = this.getFileAndProjectWithoutRefreshingInferredProjects(args);
+            const scriptInfo = project.getScriptInfoForNormalizedPath(file);
+            const { startPosition, endPosition } = this.extractStartAndEndPositionFromTextRangeRequestArgs(args, scriptInfo);
+
+            const actions = project.getLanguageService().getCodeActionsForRefactorAtPosition(
+                file,
+                { pos: startPosition, end: endPosition },
+                args.refactorCode,
+                this.projectService.getFormatCodeOptions()
+            );
+
+            return map(actions, action => this.mapCodeAction(action, scriptInfo));
+        }
+
         private getCodeFixes(args: protocol.CodeFixRequestArgs, simplifiedResult: boolean): protocol.CodeAction[] | CodeAction[] {
             if (args.errorCodes.length === 0) {
                 return undefined;
@@ -1508,8 +1525,8 @@ namespace ts.server {
             return !spans
                 ? undefined
                 : simplifiedResult
-                ? spans.map(span => this.decorateSpan(span, scriptInfo))
-                : spans;
+                    ? spans.map(span => this.decorateSpan(span, scriptInfo))
+                    : spans;
         }
 
         private getDiagnosticsForProject(next: NextStep, delay: number, fileName: string): void {
@@ -1813,6 +1830,9 @@ namespace ts.server {
             },
             [CommandNames.GetRefactorsForRange]: (request: protocol.GetRefactorsForRangeRequest) => {
                 return this.requiredResponse(this.getRefactorDiagnosticsForRange(request.arguments));
+            },
+            [CommandNames.GetCodeActionsForRefactor]: (request: protocol.GetCodeActionsForRefactorRequest) => {
+                return this.requiredResponse(this.getCodeActionsForRefactorDiagnostic(request.arguments));
             }
         });
 
@@ -1870,7 +1890,7 @@ namespace ts.server {
             let request: protocol.Request;
             try {
                 request = <protocol.Request>JSON.parse(message);
-                const {response, responseRequired} = this.executeCommand(request);
+                const { response, responseRequired } = this.executeCommand(request);
 
                 if (this.logger.hasLevel(LogLevel.requestTime)) {
                     const elapsedTime = hrTimeToMilliseconds(this.hrtime(start)).toFixed(4);

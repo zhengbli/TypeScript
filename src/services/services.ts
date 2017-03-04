@@ -1913,7 +1913,7 @@ namespace ts {
 
             const boundSourceFile = getValidSourceFile(fileName);
             const program = getProgram();
-            const context: RefactorContext = { boundSourceFile, newLineCharacter, program };
+            const context: RefactorContext = { boundSourceFile, newLineCharacter, program, rulesProvider: ruleProvider };
             const result: RefactorDiagnostic[] = [];
 
             forEachChild(boundSourceFile, visitor);
@@ -1929,12 +1929,29 @@ namespace ts {
             }
         }
 
+        function getCodeActionsForRefactorAtPosition(
+            fileName: string,
+            range: TextRange,
+            refactorCode: number,
+            formatOptions: FormatCodeSettings): CodeAction[] {
+
+            const context: RefactorContext = {
+                boundSourceFile: getValidSourceFile(fileName),
+                newLineCharacter: host.getNewLine(),
+                program: getProgram(),
+                rulesProvider: getRuleProvider(formatOptions)
+            };
+
+            return refactor.getCodeActionsForRefactor(refactorCode, range, context);
+        }
+
         return {
             dispose,
             cleanupSemanticCache,
             getSyntacticDiagnostics,
             getSemanticDiagnostics,
             getRefactorDiagnostics,
+            getCodeActionsForRefactorAtPosition,
             getCompilerOptionsDiagnostics,
             getSyntacticClassifications,
             getSemanticClassifications,
