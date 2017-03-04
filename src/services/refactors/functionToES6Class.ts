@@ -1,3 +1,4 @@
+/* @internal */
 namespace ts.refactor {
     registerRefactor({
         canBeSuggested: true,
@@ -47,7 +48,29 @@ namespace ts.refactor {
     //     const sourceFile = context.boundSourceFile;
     //     const token = getTokenAtPosition(sourceFile, diagnostic.start);
     //     const ctorSymbol = checker.getSymbolAtLocation(token);
+    //     const ctorDeclaration = ctorSymbol.valueDeclaration;
 
-    //     const changeTracker = TextChange
+    //     const changeTracker = textChanges.ChangeTracker.fromCodeFixContext(context);
+    //     let ctorBody: Block;
+    //     let ctorName: Identifier;
+    //     switch (ctorDeclaration.kind) {
+    //         case SyntaxKind.FunctionDeclaration:
+    //             ctorBody = (<FunctionDeclaration>ctorDeclaration).body;
+    //             break;
+    //         case SyntaxKind.VariableDeclaration:
+    //             const initializer = (<VariableDeclaration>ctorDeclaration).initializer;
+    //             if (initializer && initializer.kind === SyntaxKind.FunctionExpression) {
+    //                 ctorBody = (<FunctionExpression>initializer).body;
+    //             }
+    //             break;
+    //     }
+
+    //     const newNode = createClassDeclaration([], [], ctorName, [], [], []);        
+    //     changeTracker.replaceNode(sourceFile, ctorDeclaration, newNode);
+
+    //     return [{
+    //         description: "Test",
+    //         changes: changeTracker.getChanges()
+    //     }];
     // }
 }
