@@ -3493,22 +3493,33 @@ namespace ts.projectSystem {
         it("should work for class-like function declaration", () => {
             const file1: FileOrFolder = {
                 path: "/a/b/file1.js",
-                content: 
+                content:
                 `
                 function foo() {}
                 foo.prototype.getName = function () { return "foo"; };
                 `
             };
-            
+
             const host = createServerHost([file1]);
-            const projectService = createProjectService(host);
-            const session = createSession(host, /*typingsInstaller*/ undefined, event => {
-                if (event.eventName === "refactorDiag") {
-                    
-                }
-            });
-            const response = session.executeCommand(<>)
+            const session = createSession(host, /*typingsInstaller*/ undefined, () => { });
+            const projectService = session.getProjectService();
+
             projectService.openClientFile(file1.path);
+            session.executeCommandSeq(<protocol.GeterrRequest>{
+                command: CommandNames.Geterr,
+                arguments: { files: [ file1.path ] }
+            });
+            assert.equal(host.getOutput().length, 0, "expect 0 messages");
+
+            host.runQueuedTimeoutCallbacks();
+            host.runQueuedImmediateCallbacks();
+            assert.equal(host.getOutput().length, 4, "expect 4 messages");
+            const e3 = <protocol.Event>getMessage(2);
+            assert.equal(e3.event, "refactorDiag");
+
+            function getMessage(n: number) {
+                return JSON.parse(server.extractMessage(host.getOutput()[n]));
+            }
         });
     });
 

@@ -3,7 +3,6 @@ namespace ts.refactor {
         canBeSuggested: true,
         description: "Convert ES5 function to ES6 class",
         getCodeActions: undefined,
-        isApplicableForRange: undefined,
         isApplicableForNode,
         refactorCode: 1
     });
@@ -39,7 +38,16 @@ namespace ts.refactor {
         }
 
         function isClassLikeSymbol(symbol: Symbol) {
-            return symbol.members && symbol.members.size > 0;
+            return symbol && symbol.members && symbol.members.size > 0;
         }
     }
+
+    // function getCodeActions(diagnostic: RefactorDiagnostic, context: RefactorContext): CodeAction[] {
+    //     const checker = context.program.getTypeChecker();
+    //     const sourceFile = context.boundSourceFile;
+    //     const token = getTokenAtPosition(sourceFile, diagnostic.start);
+    //     const ctorSymbol = checker.getSymbolAtLocation(token);
+
+    //     const changeTracker = TextChange
+    // }
 }

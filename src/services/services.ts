@@ -1902,45 +1902,28 @@ namespace ts {
 
         function getRefactorDiagnostics(fileName: string, range?: TextRange): RefactorDiagnostic[] {
             synchronizeHostData();
-            const sourceFile = getSourceFile(fileName);
-            const program = getProgram();
-            const refactorContext: RefactorContext = {
-                sourceFile,
-                newLineCharacter: host.getNewLine(),
-                program
-            };
-
+            const newLineCharacter = host.getNewLine();
             if (range) {
-                const applicableRefactors = refactor.getApplicableRefactorsForRange(sourceFile, refactorContext);
-                return map(applicableRefactors, refactor => createRefactorDiagnostic(refactor, range));
+                const nonBoundSourceFile = getNonBoundSourceFile(fileName);
+                const context: LightRefactorContext = { newLineCharacter, nonBoundSourceFile };
+                return refactor.getRefactorDiagnosticsForRange(range, context);
             }
 
-            // if no range was provided, we only check for refactors that can be suggested.
-            // Because for things like "extract method", it is meaningless to eagerly check
-            // the entire file.
-            const refactors = refactor.getSuggestableRefactors();
+            const boundSourceFile = getValidSourceFile(fileName);
+            const program = getProgram();
+            const context: RefactorContext = { boundSourceFile, newLineCharacter, program };
             const result: RefactorDiagnostic[] = [];
 
-            forEachChild(sourceFile, visitor);
+            forEachChild(boundSourceFile, visitor);
             return result;
 
             function visitor(node: Node): void {
-                for (const refactor of refactors) {
-                    if (refactor.isApplicableForNode(node, refactorContext)) {
-                        result.push(createRefactorDiagnostic(refactor, node));
-                    }
+                const diags = refactor.getSuggestedRefactorDiagnosticsForNode(node, context);
+                if (diags.length > 0) {
+                    addRange(result, diags);
                 }
-                forEachChild(node, visitor);
-            }
 
-            function createRefactorDiagnostic(refactor: Refactor, range: TextRange) {
-                return <RefactorDiagnostic>{
-                    code: refactor.refactorCode,
-                    fileName: sourceFile.fileName,
-                    start: range.pos,
-                    end: range.end,
-                    text: refactor.description
-                }
+                forEachChild(node, visitor);
             }
         }
 
