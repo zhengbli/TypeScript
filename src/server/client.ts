@@ -709,7 +709,6 @@ namespace ts.server {
 
             return response.body.map(entry => {
                 return <RefactorDiagnostic>{
-                    fileName,
                     code: entry.code,
                     end: this.lineOffsetToPosition(fileName, entry.end),
                     start: this.lineOffsetToPosition(fileName, entry.start),

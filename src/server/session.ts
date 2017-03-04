@@ -502,8 +502,8 @@ namespace ts.server {
                     index++;
                     if (checkSpec.project.containsFile(checkSpec.fileName, requireOpen)) {
                         this.syntacticCheck(checkSpec.fileName, checkSpec.project);
-                        next.immediate(() => this.semanticCheck(checkSpec.fileName, checkSpec.project));
                         next.immediate(() => {
+                            this.semanticCheck(checkSpec.fileName, checkSpec.project);
                             this.checkRefactorDiagnostics(checkSpec.fileName, checkSpec.project);
                             if (checkList.length > index) {
                                 next.delay(followMs, checkOne);
