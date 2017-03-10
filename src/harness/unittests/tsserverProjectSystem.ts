@@ -3525,8 +3525,11 @@ namespace ts.projectSystem {
             });
             assert.equal(host.getOutput().length, 0, "expect 0 messages");
 
+            // run syntactic check
             host.runQueuedTimeoutCallbacks();
+            // run semantic check
             host.runQueuedImmediateCallbacks();
+            // run refactor diagnostics check
             host.runQueuedImmediateCallbacks();
             assert.equal(host.getOutput().length, 4, "expect 4 messages");
             const e3 = <protocol.Event>getMessage(2);
@@ -3535,7 +3538,6 @@ namespace ts.projectSystem {
             assert.isTrue(refactorDiags.length > 0);
 
             const refactorDiag = refactorDiags[0];
-
             const requestForAction = makeSessionRequest<protocol.GetCodeActionsForRefactorRequestArgs>(
                 CommandNames.GetCodeActionsForRefactor,
                 {
@@ -3547,8 +3549,7 @@ namespace ts.projectSystem {
                     refactorCode: refactorDiag.code
                 }
             );
-            const result = session.executeCommand(requestForAction);
-            console.log(result);
+            const resultedActions = (session.executeCommand(requestForAction).response as protocol.GetCodeActionsForRefactorResponse).body;
 
             function getMessage(n: number) {
                 return JSON.parse(server.extractMessage(host.getOutput()[n]));

@@ -489,6 +489,10 @@ namespace FourSlash {
             return diagnostics;
         }
 
+        private getRefactorDiagnostics(fileName: string, range?: ts.TextRange): ts.RefactorDiagnostic[] {
+            return this.languageService.getRefactorDiagnostics(fileName, range);
+        }
+
         private getAllDiagnostics(): ts.Diagnostic[] {
             const diagnostics: ts.Diagnostic[] = [];
 
@@ -2196,6 +2200,21 @@ namespace FourSlash {
             return actions;
         }
 
+        private getRefactorActions(fileName: string, range?: ts.TextRange, formattingOptions?: ts.FormatCodeSettings): ts.CodeAction[] {
+            const diagnostics = this.getRefactorDiagnostics(fileName, range);
+            const actions: ts.CodeAction[] = [];
+
+            for (const diagnostic of diagnostics) {
+                const diagnosticRange: ts.TextRange = {
+                    pos: diagnostic.start,
+                    end: diagnostic.end
+                };
+                const newActions = this.languageService.getCodeActionsForRefactorAtPosition(fileName, diagnosticRange, diagnostic.code, formattingOptions);
+                actions.push.apply(actions, newActions);
+            }
+            return actions;
+        }
+
         private applyCodeAction(fileName: string, actions: ts.CodeAction[], index?: number): void {
             if (index === undefined) {
                 if (!(actions && actions.length === 1)) {
@@ -2243,6 +2262,11 @@ namespace FourSlash {
                 this.raiseError(
                     `Actual text array doesn't match expected text array. \nActual: \n"${sortedActualArray.join("\n\n")}"\n---\nExpected: \n'${sortedExpectedArray.join("\n\n")}'`);
             }
+        }
+
+        public verifyRefactor(expectedTextArray: string[]) {
+            const ranges = this.getRanges();
+            
         }
 
         public verifyDocCommentTemplate(expected?: ts.TextInsertion) {
