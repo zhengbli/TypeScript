@@ -227,7 +227,8 @@ namespace ts {
                 return updateBinary(
                     node,
                     visitNode(node.left, visitorNoDestructuringValue, isExpression),
-                    visitNode(node.right, noDestructuringValue ? visitorNoDestructuringValue : visitor, isExpression)
+                    visitNode(node.right, noDestructuringValue ? visitorNoDestructuringValue : visitor, isExpression),
+                    node.operatorToken
                 );
             }
             return visitEachChild(node, visitor, context);
@@ -584,6 +585,7 @@ namespace ts {
                 /*typeParameters*/ undefined,
                 visitParameterList(node.parameters, visitor, context),
                 /*type*/ undefined,
+                node.equalsGreaterThanToken,
                 transformFunctionBody(node)
             );
             enclosingFunctionFlags = savedEnclosingFunctionFlags;

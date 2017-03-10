@@ -759,7 +759,7 @@ namespace ts {
                     );
                 }
                 else {
-                    return updateBinary(node, target, visitNode(right, visitor, isExpression));
+                    return updateBinary(node, target, visitNode(right, visitor, isExpression), node.operatorToken);
                 }
             }
 

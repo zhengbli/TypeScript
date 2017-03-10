@@ -375,6 +375,7 @@ namespace ts {
                     nodesVisitor((<ArrowFunction>node).typeParameters, visitor, isTypeParameter),
                     visitParameterList((<ArrowFunction>node).parameters, visitor, context, nodesVisitor),
                     visitNode((<ArrowFunction>node).type, visitor, isTypeNode),
+                    visitNode((<ArrowFunction>node).equalsGreaterThanToken, visitor, isToken),
                     visitFunctionBody((<ArrowFunction>node).body, visitor, context));
 
             case SyntaxKind.DeleteExpression:
@@ -396,7 +397,8 @@ namespace ts {
             case SyntaxKind.BinaryExpression:
                 return updateBinary(<BinaryExpression>node,
                     visitNode((<BinaryExpression>node).left, visitor, isExpression),
-                    visitNode((<BinaryExpression>node).right, visitor, isExpression));
+                    visitNode((<BinaryExpression>node).right, visitor, isExpression),
+                    visitNode((<BinaryExpression>node).operatorToken, visitor, isToken));
 
             case SyntaxKind.PrefixUnaryExpression:
                 return updatePrefix(<PrefixUnaryExpression>node,

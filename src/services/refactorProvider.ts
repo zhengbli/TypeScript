@@ -39,8 +39,8 @@ namespace ts {
 
     export namespace refactor {
         // A map with the refactor code as key, the refactor itself as value
-        let suggestableRefactors: SuggestableRefactor[] = [];
-        let nonSuggestableRefactors: NonSuggestableRefactor[] = [];
+        const suggestableRefactors: SuggestableRefactor[] = [];
+        const nonSuggestableRefactors: NonSuggestableRefactor[] = [];
 
         export function registerRefactor(refactor: Refactor) {
             switch (refactor.canBeSuggested) {

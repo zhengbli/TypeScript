@@ -3506,8 +3506,11 @@ namespace ts.projectSystem {
                 path: "/a/b/file1.js",
                 content:
                 `
-                function foo() {}
-                foo.prototype.getName = function () { return "foo"; };
+                function foo(p1, p2, p3) {};
+                foo.prototype.plusOne = function (a) { return a + 1; };
+                foo.prototype.instanceProperty = "instance property";
+                foo.staticProperty = "static property";
+                foo.staticPlusOne = function(b) { return b + 1; };
                 `
             };
 
@@ -3522,12 +3525,17 @@ namespace ts.projectSystem {
             });
             assert.equal(host.getOutput().length, 0, "expect 0 messages");
 
+            // run syntactic check
             host.runQueuedTimeoutCallbacks();
+            // run semantic check
             host.runQueuedImmediateCallbacks();
+            // run refactor diagnostics check
             host.runQueuedImmediateCallbacks();
             assert.equal(host.getOutput().length, 4, "expect 4 messages");
             const e3 = <protocol.Event>getMessage(2);
             assert.equal(e3.event, "refactorDiag");
+            const refactorDiags = (<protocol.RefactorDiagnosticEventBody>e3.body).diagnostics;
+            assert.isTrue(refactorDiags.length > 0);
 
             function getMessage(n: number) {
                 return JSON.parse(server.extractMessage(host.getOutput()[n]));

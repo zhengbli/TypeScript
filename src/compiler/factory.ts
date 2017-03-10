@@ -578,11 +578,14 @@ namespace ts {
         return node;
     }
 
-    export function updateArrowFunction(node: ArrowFunction, modifiers: Modifier[] | undefined, typeParameters: TypeParameterDeclaration[] | undefined, parameters: ParameterDeclaration[], type: TypeNode | undefined, body: ConciseBody) {
+    export function updateArrowFunction(
+        node: ArrowFunction, modifiers: Modifier[] | undefined, typeParameters: TypeParameterDeclaration[] | undefined,
+        parameters: ParameterDeclaration[], type: TypeNode | undefined, equalsGreaterThanToken: Token<SyntaxKind.EqualsGreaterThanToken>,  body: ConciseBody) {
         return node.modifiers !== modifiers
             || node.typeParameters !== typeParameters
             || node.parameters !== parameters
             || node.type !== type
+            || node.equalsGreaterThanToken !== equalsGreaterThanToken
             || node.body !== body
             ? updateNode(createArrowFunction(modifiers, typeParameters, parameters, type, node.equalsGreaterThanToken, body), node)
             : node;
@@ -672,10 +675,9 @@ namespace ts {
         return node;
     }
 
-    export function updateBinary(node: BinaryExpression, left: Expression, right: Expression) {
-        return node.left !== left
-            || node.right !== right
-            ? updateNode(createBinary(left, node.operatorToken, right), node)
+    export function updateBinary(node: BinaryExpression, left: Expression, right: Expression, operatorToken: Token<BinaryOperator>) {
+        return node.left !== left || node.right !== right || node.operatorToken !== operatorToken
+            ? updateNode(createBinary(left, operatorToken, right), node)
             : node;
     }
 
