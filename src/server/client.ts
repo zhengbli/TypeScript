@@ -717,6 +717,25 @@ namespace ts.server {
             });
         }
 
+        getCodeActionsForRefactorAtPosition(fileName: string, range: TextRange, refactorCode: number): CodeAction[] {
+            const startLineOffset = this.positionToOneBasedLineOffset(fileName, range.pos);
+            const endLineOffset = this.positionToOneBasedLineOffset(fileName, range.end);
+
+            const args: protocol.GetCodeActionsForRefactorRequestArgs = {
+                file: fileName,
+                startLine: startLineOffset.line,
+                startOffset: startLineOffset.offset,
+                endLine: endLineOffset.line,
+                endOffset: endLineOffset.offset,
+                refactorCode
+            };
+
+            const request = this.processRequest<protocol.GetCodeActionsForRefactorRequest>(CommandNames.GetCodeActionsForRefactor, args);
+            const response = this.processResponse<protocol.GetCodeActionsForRefactorResponse>(request);
+
+            return response.body.map(entry => this.convertCodeActions(entry, fileName));
+        }
+
         convertCodeActions(entry: protocol.CodeAction, fileName: string): CodeAction {
             return {
                 description: entry.description,

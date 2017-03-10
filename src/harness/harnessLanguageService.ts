@@ -492,6 +492,9 @@ namespace Harness.LanguageService {
         getRefactorDiagnostics(): ts.RefactorDiagnostic[] {
             throw new Error("Not supported on the shim.");
         }
+        getCodeActionsForRefactorAtPosition(): ts.CodeAction[] {
+            throw new Error("Not supported on the shim.");
+        }
         getEmitOutput(fileName: string): ts.EmitOutput {
             return unwrapJSONCallResult(this.shim.getEmitOutput(fileName));
         }

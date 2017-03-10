@@ -672,10 +672,9 @@ namespace ts {
         return node;
     }
 
-    export function updateBinary(node: BinaryExpression, left: Expression, right: Expression) {
-        return node.left !== left
-            || node.right !== right
-            ? updateNode(createBinary(left, node.operatorToken, right), node)
+    export function updateBinary(node: BinaryExpression, left: Expression, right: Expression, operatorToken: Token<BinaryOperator>) {
+        return node.left !== left || node.right !== right || node.operatorToken !== operatorToken
+            ? updateNode(createBinary(left, operatorToken, right), node)
             : node;
     }
 
