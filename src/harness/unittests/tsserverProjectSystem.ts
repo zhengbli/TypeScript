@@ -3537,20 +3537,6 @@ namespace ts.projectSystem {
             const refactorDiags = (<protocol.RefactorDiagnosticEventBody>e3.body).diagnostics;
             assert.isTrue(refactorDiags.length > 0);
 
-            const refactorDiag = refactorDiags[0];
-            const requestForAction = makeSessionRequest<protocol.GetCodeActionsForRefactorRequestArgs>(
-                CommandNames.GetCodeActionsForRefactor,
-                {
-                    file: file1.path,
-                    startLine: refactorDiag.start.line,
-                    startOffset: refactorDiag.start.offset,
-                    endLine: refactorDiag.end.line,
-                    endOffset: refactorDiag.end.offset,
-                    refactorCode: refactorDiag.code
-                }
-            );
-            const resultedActions = (session.executeCommand(requestForAction).response as protocol.GetCodeActionsForRefactorResponse).body;
-
             function getMessage(n: number) {
                 return JSON.parse(server.extractMessage(host.getOutput()[n]));
             }

@@ -18,11 +18,22 @@ namespace ts.refactor {
         return isClassLikeSymbol(symbol);
 
         function isClassLikeSymbol(symbol: Symbol) {
-            if (!(symbol && symbol.valueDeclaration && symbol.members && symbol.members.size > 0)) {
+            if (!symbol || !symbol.valueDeclaration) {
                 return false;
             }
 
-            return isDeclarationOfFunctionOrClassExpression(symbol) || symbol.valueDeclaration.kind === SyntaxKind.FunctionDeclaration;
+            let targetSymbol: Symbol;
+            if (symbol.valueDeclaration.kind === SyntaxKind.FunctionDeclaration) {
+                targetSymbol = symbol;
+            }
+            else if (isDeclarationOfFunctionOrClassExpression(symbol)) {
+                targetSymbol = (symbol.valueDeclaration as VariableDeclaration).initializer.symbol;
+            }
+
+            // if there is a prototype property assignment like:
+            //     foo.prototype.method = function () { }
+            // then the symbol for "foo" will have a member
+            return targetSymbol && targetSymbol.members && targetSymbol.members.size > 0;
         }
     }
 
@@ -32,7 +43,7 @@ namespace ts.refactor {
         const token = getTokenAtPosition(sourceFile, range.pos);
         const ctorSymbol = checker.getSymbolAtLocation(token);
 
-        if (!(ctorSymbol.flags & SymbolFlags.Function)) {
+        if (!(ctorSymbol.flags & (SymbolFlags.Function | SymbolFlags.Variable))) {
             return [];
         }
 
@@ -45,14 +56,14 @@ namespace ts.refactor {
                 newClassDeclaration = createClassFromFunctionDeclaration(ctorDeclaration as FunctionDeclaration);
                 break;
 
-            // case SyntaxKind.FunctionExpression:
-            //     const initializer = (<VariableDeclaration>ctorDeclaration).initializer;
-            //     if (initializer && initializer.kind === SyntaxKind.FunctionExpression) {
-            //         ctorName = (<FunctionExpression>initializer).name;
-            //         ctorBody = (<FunctionExpression>initializer).body;
-            //         ctorParameterDeclarations = (<FunctionExpression>initializer).parameters;
-            //     }
-            //     break;
+            case SyntaxKind.VariableDeclaration:
+                const initializer = (<VariableDeclaration>ctorDeclaration).initializer;
+                if (initializer && initializer.kind === SyntaxKind.FunctionExpression) {
+                    ctorName = (<FunctionExpression>initializer).name;
+                    ctorBody = (<FunctionExpression>initializer).body;
+                    ctorParameterDeclarations = (<FunctionExpression>initializer).parameters;
+                }
+                break;
         }
         changeTracker.replaceNode(sourceFile, ctorDeclaration, newClassDeclaration);
 
@@ -61,25 +72,41 @@ namespace ts.refactor {
             changes: changeTracker.getChanges()
         }];
 
+        function createClassMembersFromSymbol(symbol: Symbol) {
+            
+        }
+
+        function createClassFromVariableDeclaration(node: VariableDeclaration): ClassDeclaration {
+            const initializer = node.initializer;
+            if (initializer && initializer.kind === SyntaxKind.FunctionExpression) {
+                return createClassDeclaration(/*decorators*/ undefined, /*modifiers*/ undefined, node.name,
+                    /*typeParameters*/ undefined, /*heritageClauses*/ undefined, memberElements);
+            }
+        }
+
         function createClassFromFunctionDeclaration(node: FunctionDeclaration): ClassDeclaration {
             const newConstructor = createConstructor(/*decorators*/ undefined, /*modifiers*/ undefined, node.parameters, node.body);
             const memberElements: ClassElement[] = [newConstructor];
 
             // all instance members are stored in the "member" array of ctorSymbol
-            ctorSymbol.members.forEach(member => {
-                const memberElement = createClassElementForSymbol(member, /*modifiers*/ undefined);
-                if (memberElement) {
-                    memberElements.push(memberElement);
-                }
-            });
+            if (ctorSymbol.members) {
+                ctorSymbol.members.forEach(member => {
+                    const memberElement = createClassElementForSymbol(member, /*modifiers*/ undefined);
+                    if (memberElement) {
+                        memberElements.push(memberElement);
+                    }
+                });
+            }
 
             // all static members are stored in the "exports" array of ctorSymbol
-            ctorSymbol.exports.forEach(member => {
-                const memberElement = createClassElementForSymbol(member, [createToken(SyntaxKind.StaticKeyword)]);
-                if (memberElement) {
-                    memberElements.push(memberElement);
-                }
-            });
+            if (ctorSymbol.exports) {
+                ctorSymbol.exports.forEach(member => {
+                    const memberElement = createClassElementForSymbol(member, [createToken(SyntaxKind.StaticKeyword)]);
+                    if (memberElement) {
+                        memberElements.push(memberElement);
+                    }
+                });
+            }
 
             return createClassDeclaration(/*decorators*/ undefined, /*modifiers*/ undefined, node.name,
                 /*typeParameters*/ undefined, /*heritageClauses*/ undefined, memberElements);
@@ -94,6 +121,14 @@ namespace ts.refactor {
             const memberDeclaration = symbol.valueDeclaration as PropertyAccessExpression;
             const assignmentBinaryExpression = memberDeclaration.parent as BinaryExpression;
 
+            // delete the entire statement if this expression is the sole expression to take care of the semicolon at the end
+            if (assignmentBinaryExpression.parent && assignmentBinaryExpression.parent.kind === SyntaxKind.ExpressionStatement) {
+                changeTracker.deleteNode(sourceFile, assignmentBinaryExpression.parent);
+            }
+            else {
+                changeTracker.deleteNode(sourceFile, assignmentBinaryExpression);
+            }
+
             if (!assignmentBinaryExpression.right) {
                 return createProperty([], modifiers, symbol.name, /*questionToken*/ undefined,
                     /*type*/ undefined, /*initializer*/ undefined);
@@ -104,6 +139,22 @@ namespace ts.refactor {
                     const functionExpression = assignmentBinaryExpression.right as FunctionExpression;
                     return createMethod(/*decorators*/ undefined, modifiers, /*asteriskToken*/ undefined, memberDeclaration.name,
                         /*typeParameters*/ undefined, functionExpression.parameters, /*type*/ undefined, functionExpression.body);
+                case SyntaxKind.ArrowFunction:
+                    const arrowFunction = assignmentBinaryExpression.right as ArrowFunction;
+                    const arrowFunctionBody = arrowFunction.body;
+                    let bodyBlock: Block;
+
+                    // case 1: () => { return [1,2,3] }
+                    if (arrowFunctionBody.kind === SyntaxKind.Block) {
+                        bodyBlock = arrowFunctionBody as Block;
+                    }
+                    // case 2: () => [1,2,3]
+                    else {
+                        const expression = arrowFunctionBody as Expression;
+                        bodyBlock = createBlock([createReturn(expression)]);
+                    }
+                    return createMethod(/*decorators*/ undefined, modifiers, /*asteriskToken*/ undefined, memberDeclaration.name,
+                        /*typeParameters*/ undefined, arrowFunction.parameters, /*type*/ undefined, bodyBlock);
                 default:
                     return createProperty(/*decorators*/ undefined, modifiers, memberDeclaration.name, /*questionToken*/ undefined,
                         /*type*/ undefined, assignmentBinaryExpression.right);

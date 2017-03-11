@@ -2203,6 +2203,7 @@ namespace FourSlash {
         private getRefactorActions(fileName: string, range?: ts.TextRange, formattingOptions?: ts.FormatCodeSettings): ts.CodeAction[] {
             const diagnostics = this.getRefactorDiagnostics(fileName, range);
             const actions: ts.CodeAction[] = [];
+            formattingOptions = formattingOptions ? formattingOptions : this.formatCodeSettings;
 
             for (const diagnostic of diagnostics) {
                 const diagnosticRange: ts.TextRange = {
@@ -2262,11 +2263,6 @@ namespace FourSlash {
                 this.raiseError(
                     `Actual text array doesn't match expected text array. \nActual: \n"${sortedActualArray.join("\n\n")}"\n---\nExpected: \n'${sortedExpectedArray.join("\n\n")}'`);
             }
-        }
-
-        public verifyRefactor(expectedTextArray: string[]) {
-            const ranges = this.getRanges();
-            
         }
 
         public verifyDocCommentTemplate(expected?: ts.TextInsertion) {
@@ -2574,6 +2570,38 @@ namespace FourSlash {
 
             if (!(negative || codeFix)) {
                 this.raiseError(`verifyCodeFixAvailable failed - expected code fixes but none found.`);
+            }
+        }
+
+        public verifyRefactorAvailable(negative: boolean) {
+            const ranges = this.getRanges();
+            if (ranges.length > 1) {
+                throw new Error("only one refactor range is allowed per test");
+            }
+
+            const range = ranges[0] ? { pos: ranges[0].start, end: ranges[0].end } : undefined;
+            const refactorDiagnostics = this.getRefactorDiagnostics(this.activeFile.fileName, range);
+            if (negative && refactorDiagnostics.length > 0) {
+                this.raiseError(`verifyRefactorAvailable failed - expected no refactors but found some.`);
+            }
+            if (!negative && refactorDiagnostics.length === 0) {
+                this.raiseError(`verifyRefactorAvailable failed: expected refactor diagnostics but none found.`);
+            }
+        }
+
+        public verifyFileAfterApplyingRefactors(expectedContent: string, formattingOptions?: ts.FormatCodeSettings) {
+            const ranges = this.getRanges();
+            if (ranges.length > 1) {
+                throw new Error("only one refactor range is allowed per test");
+            }
+
+            const range = ranges[0] ? { pos: ranges[0].start, end: ranges[0].end } : undefined;
+            const actions = this.getRefactorActions(this.activeFile.fileName, range, formattingOptions);
+            this.applyCodeAction(this.activeFile.fileName, actions, /*index*/ 0);
+            const actualContent = this.getFileContent(this.activeFile.fileName);
+
+            if (this.normalizeNewlines(actualContent) !== this.normalizeNewlines(expectedContent)) {
+                this.raiseError(`verifyFileAfterApplyingRefactors failed: expected:\n${expectedContent}\nactual:\n${actualContent}`);
             }
         }
 
@@ -3368,6 +3396,10 @@ namespace FourSlashInterface {
         public codeFixAvailable() {
             this.state.verifyCodeFixAvailable(this.negative);
         }
+
+        public refactorAvailable() {
+            this.state.verifyRefactorAvailable(this.negative);
+        }
     }
 
     export class Verify extends VerifyNegatable {
@@ -3572,6 +3604,10 @@ namespace FourSlashInterface {
 
         public rangeAfterCodeFix(expectedText: string, includeWhiteSpace?: boolean, errorCode?: number, index?: number): void {
             this.state.verifyRangeAfterCodeFix(expectedText, includeWhiteSpace, errorCode, index);
+        }
+
+        public fileAfterApplyingRefactors(expectedContent: string, formattingOptions: ts.FormatCodeSettings): void {
+            this.state.verifyFileAfterApplyingRefactors(expectedContent, formattingOptions);
         }
 
         public importFixAtPosition(expectedTextArray: string[], errorCode?: number): void {
