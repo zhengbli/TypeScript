@@ -43,122 +43,148 @@ namespace ts.refactor {
         const token = getTokenAtPosition(sourceFile, range.pos);
         const ctorSymbol = checker.getSymbolAtLocation(token);
 
+        const deletes: (() => any)[] = [];
+
         if (!(ctorSymbol.flags & (SymbolFlags.Function | SymbolFlags.Variable))) {
             return [];
         }
 
         const ctorDeclaration = ctorSymbol.valueDeclaration;
-
         const changeTracker = textChanges.ChangeTracker.fromCodeFixContext(context);
+
+        let precedingNode: Node;
         let newClassDeclaration: ClassDeclaration;
         switch (ctorDeclaration.kind) {
             case SyntaxKind.FunctionDeclaration:
+                precedingNode = ctorDeclaration;
+                deletes.push(() => changeTracker.deleteNode(sourceFile, ctorDeclaration));
                 newClassDeclaration = createClassFromFunctionDeclaration(ctorDeclaration as FunctionDeclaration);
                 break;
 
             case SyntaxKind.VariableDeclaration:
-                const initializer = (<VariableDeclaration>ctorDeclaration).initializer;
-                if (initializer && initializer.kind === SyntaxKind.FunctionExpression) {
-                    ctorName = (<FunctionExpression>initializer).name;
-                    ctorBody = (<FunctionExpression>initializer).body;
-                    ctorParameterDeclarations = (<FunctionExpression>initializer).parameters;
+                precedingNode = ctorDeclaration.parent.parent;
+                if ((<VariableDeclarationList>ctorDeclaration.parent).declarations.length === 1) {
+                    deletes.push(() => changeTracker.deleteNode(sourceFile, precedingNode));
                 }
+                else {
+                    deletes.push(() => changeTracker.deleteNodeInList(sourceFile, ctorDeclaration));
+                }
+                newClassDeclaration = createClassFromVariableDeclaration(ctorDeclaration as VariableDeclaration);
                 break;
         }
-        changeTracker.replaceNode(sourceFile, ctorDeclaration, newClassDeclaration);
+
+        if (!newClassDeclaration) {
+            return [];
+        }
+
+        // Because the preceding node could be touched, we need to insert nodes before delete nodes.
+        changeTracker.insertNodeAfter(sourceFile, precedingNode, newClassDeclaration, { insertTrailingNewLine: true });
+        for (const deleteCallback of deletes) {
+            deleteCallback();
+        }
 
         return [{
             description: "Test",
             changes: changeTracker.getChanges()
         }];
 
-        function createClassMembersFromSymbol(symbol: Symbol) {
-            
+        function createClassElementsFromSymbol(symbol: Symbol) {
+            const memberElements: ClassElement[] = [];
+            // all instance members are stored in the "member" array of symbol
+            if (symbol.members) {
+                symbol.members.forEach(member => {
+                    const memberElement = createClassElement(member, /*modifiers*/ undefined);
+                    if (memberElement) {
+                        memberElements.push(memberElement);
+                    }
+                });
+            }
+
+            // all static members are stored in the "exports" array of symbol
+            if (symbol.exports) {
+                symbol.exports.forEach(member => {
+                    const memberElement = createClassElement(member, [createToken(SyntaxKind.StaticKeyword)]);
+                    if (memberElement) {
+                        memberElements.push(memberElement);
+                    }
+                });
+            }
+
+            return memberElements;
+
+            function createClassElement(symbol: Symbol, modifiers: Modifier[]): ClassElement {
+                // both property and methods are bound as property symbols
+                if (!(symbol.flags & SymbolFlags.Property)) {
+                    return;
+                }
+
+                const memberDeclaration = symbol.valueDeclaration as PropertyAccessExpression;
+                const assignmentBinaryExpression = memberDeclaration.parent as BinaryExpression;
+
+                // delete the entire statement if this expression is the sole expression to take care of the semicolon at the end
+                const nodeToDelete = assignmentBinaryExpression.parent && assignmentBinaryExpression.parent.kind === SyntaxKind.ExpressionStatement
+                    ? assignmentBinaryExpression.parent : assignmentBinaryExpression;
+                deletes.push(() => changeTracker.deleteNode(sourceFile, nodeToDelete));
+
+                if (!assignmentBinaryExpression.right) {
+                    return createProperty([], modifiers, symbol.name, /*questionToken*/ undefined,
+                        /*type*/ undefined, /*initializer*/ undefined);
+                }
+
+                switch (assignmentBinaryExpression.right.kind) {
+                    case SyntaxKind.FunctionExpression:
+                        const functionExpression = assignmentBinaryExpression.right as FunctionExpression;
+                        return createMethod(/*decorators*/ undefined, modifiers, /*asteriskToken*/ undefined, memberDeclaration.name,
+                            /*typeParameters*/ undefined, functionExpression.parameters, /*type*/ undefined, functionExpression.body);
+                    case SyntaxKind.ArrowFunction:
+                        const arrowFunction = assignmentBinaryExpression.right as ArrowFunction;
+                        const arrowFunctionBody = arrowFunction.body;
+                        let bodyBlock: Block;
+
+                        // case 1: () => { return [1,2,3] }
+                        if (arrowFunctionBody.kind === SyntaxKind.Block) {
+                            bodyBlock = arrowFunctionBody as Block;
+                        }
+                        // case 2: () => [1,2,3]
+                        else {
+                            const expression = arrowFunctionBody as Expression;
+                            bodyBlock = createBlock([createReturn(expression)]);
+                        }
+                        return createMethod(/*decorators*/ undefined, modifiers, /*asteriskToken*/ undefined, memberDeclaration.name,
+                            /*typeParameters*/ undefined, arrowFunction.parameters, /*type*/ undefined, bodyBlock);
+                    default:
+                        return createProperty(/*decorators*/ undefined, modifiers, memberDeclaration.name, /*questionToken*/ undefined,
+                            /*type*/ undefined, assignmentBinaryExpression.right);
+                }
+            }
         }
 
         function createClassFromVariableDeclaration(node: VariableDeclaration): ClassDeclaration {
-            const initializer = node.initializer;
-            if (initializer && initializer.kind === SyntaxKind.FunctionExpression) {
-                return createClassDeclaration(/*decorators*/ undefined, /*modifiers*/ undefined, node.name,
-                    /*typeParameters*/ undefined, /*heritageClauses*/ undefined, memberElements);
-            }
-        }
-
-        function createClassFromFunctionDeclaration(node: FunctionDeclaration): ClassDeclaration {
-            const newConstructor = createConstructor(/*decorators*/ undefined, /*modifiers*/ undefined, node.parameters, node.body);
-            const memberElements: ClassElement[] = [newConstructor];
-
-            // all instance members are stored in the "member" array of ctorSymbol
-            if (ctorSymbol.members) {
-                ctorSymbol.members.forEach(member => {
-                    const memberElement = createClassElementForSymbol(member, /*modifiers*/ undefined);
-                    if (memberElement) {
-                        memberElements.push(memberElement);
-                    }
-                });
+            const initializer = node.initializer as FunctionExpression;
+            if (!initializer || initializer.kind !== SyntaxKind.FunctionExpression) {
+                return undefined;
             }
 
-            // all static members are stored in the "exports" array of ctorSymbol
-            if (ctorSymbol.exports) {
-                ctorSymbol.exports.forEach(member => {
-                    const memberElement = createClassElementForSymbol(member, [createToken(SyntaxKind.StaticKeyword)]);
-                    if (memberElement) {
-                        memberElements.push(memberElement);
-                    }
-                });
+            if (node.name.kind !== SyntaxKind.Identifier) {
+                return undefined;
+            }
+
+            const memberElements = createClassElementsFromSymbol(initializer.symbol);
+            if (initializer.body) {
+                memberElements.unshift(createConstructor(/*decorators*/ undefined, /*modifiers*/ undefined, initializer.parameters, initializer.body))
             }
 
             return createClassDeclaration(/*decorators*/ undefined, /*modifiers*/ undefined, node.name,
                 /*typeParameters*/ undefined, /*heritageClauses*/ undefined, memberElements);
         }
 
-        function createClassElementForSymbol(symbol: Symbol, modifiers: Modifier[]): ClassElement {
-            // both property and methods are bound as property symbols
-            if (!(symbol.flags & SymbolFlags.Property)) {
-                return;
+        function createClassFromFunctionDeclaration(node: FunctionDeclaration): ClassDeclaration {
+            const memberElements = createClassElementsFromSymbol(ctorSymbol);
+            if (node.body) {
+                memberElements.unshift(createConstructor(/*decorators*/ undefined, /*modifiers*/ undefined, node.parameters, node.body));
             }
-
-            const memberDeclaration = symbol.valueDeclaration as PropertyAccessExpression;
-            const assignmentBinaryExpression = memberDeclaration.parent as BinaryExpression;
-
-            // delete the entire statement if this expression is the sole expression to take care of the semicolon at the end
-            if (assignmentBinaryExpression.parent && assignmentBinaryExpression.parent.kind === SyntaxKind.ExpressionStatement) {
-                changeTracker.deleteNode(sourceFile, assignmentBinaryExpression.parent);
-            }
-            else {
-                changeTracker.deleteNode(sourceFile, assignmentBinaryExpression);
-            }
-
-            if (!assignmentBinaryExpression.right) {
-                return createProperty([], modifiers, symbol.name, /*questionToken*/ undefined,
-                    /*type*/ undefined, /*initializer*/ undefined);
-            }
-
-            switch (assignmentBinaryExpression.right.kind) {
-                case SyntaxKind.FunctionExpression:
-                    const functionExpression = assignmentBinaryExpression.right as FunctionExpression;
-                    return createMethod(/*decorators*/ undefined, modifiers, /*asteriskToken*/ undefined, memberDeclaration.name,
-                        /*typeParameters*/ undefined, functionExpression.parameters, /*type*/ undefined, functionExpression.body);
-                case SyntaxKind.ArrowFunction:
-                    const arrowFunction = assignmentBinaryExpression.right as ArrowFunction;
-                    const arrowFunctionBody = arrowFunction.body;
-                    let bodyBlock: Block;
-
-                    // case 1: () => { return [1,2,3] }
-                    if (arrowFunctionBody.kind === SyntaxKind.Block) {
-                        bodyBlock = arrowFunctionBody as Block;
-                    }
-                    // case 2: () => [1,2,3]
-                    else {
-                        const expression = arrowFunctionBody as Expression;
-                        bodyBlock = createBlock([createReturn(expression)]);
-                    }
-                    return createMethod(/*decorators*/ undefined, modifiers, /*asteriskToken*/ undefined, memberDeclaration.name,
-                        /*typeParameters*/ undefined, arrowFunction.parameters, /*type*/ undefined, bodyBlock);
-                default:
-                    return createProperty(/*decorators*/ undefined, modifiers, memberDeclaration.name, /*questionToken*/ undefined,
-                        /*type*/ undefined, assignmentBinaryExpression.right);
-            }
+            return createClassDeclaration(/*decorators*/ undefined, /*modifiers*/ undefined, node.name,
+                /*typeParameters*/ undefined, /*heritageClauses*/ undefined, memberElements);
         }
     }
 }

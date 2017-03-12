@@ -2,7 +2,7 @@
 
 // @allowNonTsExtensions: true
 // @Filename: test123.js
-//// var foo = function() { };
+//// var bar = 10, foo = function() { };
 //// foo.prototype.instanceMethod1 = function() { return "this is name"; };
 //// foo.prototype.instanceMethod2 = () => { return "this is name"; };
 //// foo.prototype.instanceProp1 = "hello";
@@ -14,7 +14,8 @@
 
 verify.refactorAvailable();
 verify.fileAfterApplyingRefactors(
-`class foo {
+`var bar = 10;
+class foo {
     constructor() { }
     instanceMethod1() { return "this is name"; }
     instanceMethod2() { return "this is name"; }
