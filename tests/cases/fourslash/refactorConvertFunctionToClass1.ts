@@ -23,4 +23,5 @@ verify.fileAfterApplyingRefactors(
     static staticProp = "world";
     static staticMethod1() { return "this is static name"; }
     static staticMethod2() { return "this is static name"; }
-}`);
+}
+`);
