@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -593,7 +593,7 @@ namespace FourSlash {
         }
 
         private getGoToDefinition(): ts.DefinitionInfo[] {
-            return this.languageService.getDefinitionAtPosition(this.activeFile.fileName, this.currentCaretPosition)
+            return this.languageService.getDefinitionAtPosition(this.activeFile.fileName, this.currentCaretPosition);
         }
 
         public verifyGoToType(arg0: any, endMarkerNames?: string | string[]) {
@@ -934,7 +934,7 @@ namespace FourSlash {
             function rangeToReferenceEntry(r: Range) {
                 let { isWriteAccess, isDefinition } = (r.marker && r.marker.data) || { isWriteAccess: false, isDefinition: false };
                 isWriteAccess = !!isWriteAccess; isDefinition = !!isDefinition;
-                return { fileName: r.fileName, textSpan: { start: r.start, length: r.end - r.start }, isWriteAccess, isDefinition }
+                return { fileName: r.fileName, textSpan: { start: r.start, length: r.end - r.start }, isWriteAccess, isDefinition };
             }
         }
 
@@ -2180,7 +2180,7 @@ namespace FourSlash {
                     start: diagnostic.start,
                     length: diagnostic.length,
                     code: diagnostic.code
-                }
+                };
             });
             const dedupedDiagnositcs = ts.deduplicate(diagnosticsForCodeFix, ts.equalOwnProperties);
 
@@ -2271,22 +2271,23 @@ namespace FourSlash {
 
             if (expected === undefined) {
                 if (actual) {
-                    this.raiseError(name + " failed - expected no template but got {newText: \"" + actual.newText + "\" caretOffset: " + actual.caretOffset + "}");
+                    this.raiseError(`${name} failed - expected no template but got {newText: "${actual.newText}", caretOffset: ${actual.caretOffset}}`);
                 }
 
                 return;
             }
             else {
                 if (actual === undefined) {
-                    this.raiseError(name + " failed - expected the template {newText: \"" + actual.newText + "\" caretOffset: " + actual.caretOffset + "} but got nothing instead");
+                    this.raiseError(`${name} failed - expected the template {newText: "${expected.newText}", caretOffset: "${expected.caretOffset}"} but got nothing instead`);
+                    
                 }
 
                 if (actual.newText !== expected.newText) {
-                    this.raiseError(name + " failed - expected insertion:\n" + this.clarifyNewlines(expected.newText) + "\nactual insertion:\n" + this.clarifyNewlines(actual.newText));
+                    this.raiseError(`${name} failed - expected insertion:\n"${this.clarifyNewlines(expected.newText)}"\nactual insertion:\n"${this.clarifyNewlines(actual.newText)}"`);
                 }
 
                 if (actual.caretOffset !== expected.caretOffset) {
-                    this.raiseError(name + " failed - expected caretOffset: " + expected.caretOffset + ",\nactual caretOffset:" + actual.caretOffset);
+                    this.raiseError(`${name} failed - expected caretOffset: ${expected.caretOffset}\nactual caretOffset:${actual.caretOffset}`);
                 }
             }
         }

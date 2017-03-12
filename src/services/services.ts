@@ -1,4 +1,4 @@
-﻿/// <reference path="..\compiler\program.ts"/>
+/// <reference path="..\compiler\program.ts"/>
 /// <reference path="..\compiler\commandLineParser.ts"/>
 
 /// <reference path='types.ts' />
@@ -415,7 +415,7 @@ namespace ts {
         getDeclaration(): SignatureDeclaration {
             return this.declaration;
         }
-        getTypeParameters(): Type[] {
+        getTypeParameters(): TypeParameter[] {
             return this.typeParameters;
         }
         getParameters(): Symbol[] {

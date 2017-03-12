@@ -785,7 +785,7 @@ namespace Harness.LanguageService {
                                         start: 0
                                     });
                                     return prev;
-                                }
+                                };
                                 return proxy;
                             }
                         }),
