@@ -3362,5 +3362,9 @@
     "Octal literals are not allowed in enums members initializer. Use the syntax '{0}'.": {
         "category": "Error",
         "code": 8018
+    },
+    "Convert function '{0}' to ES6 class.": {
+        "category": "Refactor",
+        "code": 100000
     }
 }
