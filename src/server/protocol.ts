@@ -1542,11 +1542,6 @@ namespace ts.server.protocol {
          * made to avoid errors. The code action is normally adding an additional import statement.
          */
         hasAction?: true;
-        /**
-         * ONLY has value when hasAction = true
-         * Used to find the corresponding completion item symbol for additional code actions
-         */
-        sourceFileName?: string;
     }
 
     /**
